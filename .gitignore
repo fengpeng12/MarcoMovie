@@ -29,3 +29,5 @@ repo.git
 # 掌造工作区快照（不属于源码）
 .webnex-snapshots/
 # 掌造工作区元数据（.webnex-snapshots / repo.git）不属于项目源码
+# 掌造本地构建产物（ci_build 下载回本机的 APK 所在目录）
+build/
