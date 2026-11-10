@@ -1,6 +1,11 @@
 name: Build MarcoMovie Phone APK
 
 # 只产出手机端（android-mobile）安装包，TV / lite 端产物一律删除
+#
+# 签名说明：scripts/build_android.py 需要 android/private/development.p12。
+# 该目录被 .gitignore 忽略，CI 每次都是全新 clone，若不预先把密钥放回去，
+# 脚本会现场随机生成一把新密钥 —— 导致每次构建签名都不同、无法覆盖升级。
+# 因此这里从仓库 Secret SIGNING_KEYSTORE_B64 还原固定密钥，并校验证书指纹。
 
 on:
   workflow_dispatch:
@@ -11,6 +16,10 @@ on:
 
 permissions:
   contents: read
+
+env:
+  # 固定签名证书指纹；密钥不对时构建直接失败，避免产出装不上的包
+  MARCOMOVIE_EXPECTED_SIGNER_SHA256: 3af660d0ccf0cbb88d787e47474fd3f1a85293073efb6ae07d6c25735321c200
 
 jobs:
   apk:
@@ -32,7 +41,22 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0 ndk;28.2.13676358'
 
+      - name: Restore signing keystore
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$SIGNING_KEYSTORE_B64" ]; then
+            echo "::error::缺少 Secret SIGNING_KEYSTORE_B64，签名将无法固定"
+            exit 1
+          fi
+          mkdir -p android/private
+          printf '%s' "$SIGNING_KEYSTORE_B64" | base64 -d > android/private/development.p12
+          chmod 600 android/private/development.p12
+          keytool -list -keystore android/private/development.p12 -storepass android -alias marcomovie | tail -3
+
       - name: Build APK
+        env:
+          MARCOMOVIE_KEY_PASSWORD: android
         run: |
           export MARCOMOVIE_JDK="$JAVA_HOME"
           export MARCOMOVIE_BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
