@@ -1,0 +1,99 @@
+name: Public content checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/check_public_content.py
+      - run: python scripts/test_drpy_assets.py
+      - run: python scripts/prepare_python_html.py --check
+      - run: python scripts/test_python_html_assets.py
+      - run: python scripts/prepare_python_modules.py --check
+      - run: node scripts/test_python_compiled_modules.js
+      - run: python scripts/update_drpy_assets.py --check
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Java formatting (pinned google-java-format)
+        run: python scripts/format_java.py --check
+
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare pinned JS compile dependencies
+        run: python scripts/prepare_js_test_dependencies.py
+      - name: Offline behavior checks
+        run: |
+          python android/tests/run_checks.py
+          python android/tests/run_http_t4_checks.py
+          python android/tests/run_compat_checks.py
+          python android/tests/run_global_search_checks.py
+          python android/tests/run_js_player_checks.py
+          python android/tests/run_drpy_checks.py
+          python android/tests/run_node_capability_checks.py
+          python android/tests/run_scheduling_checks.py
+          python android/tests/run_review_fix_checks.py
+          python android/tests/run_seek_checks.py
+          python android/tests/run_favorites_checks.py
+          python android/tests/run_live_checks.py
+          python android/tests/run_decoder_checks.py
+          python android/tests/run_tv_input_checks.py
+          python android/tests/run_python_package_checks.py
+          python android/tests/run_script_proxy_checks.py
+          python android/tests/run_catvod_transport_checks.py
+          python android/tests/run_update_checks.py
+          python scripts/test_movie_mirror.py
+          python scripts/test_platform_packages.py
+          python scripts/test_android_update_packages.py
+          python scripts/test_native_elf.py
+          python scripts/test_catpaw_runtime_bundle.py
+      - name: Shared script runtime and native patch checks
+        run: |
+          node scripts/test_js_module_interop.cjs
+          node --jitless scripts/test_catvod_profile.cjs
+          node scripts/test_python_host.js
+          node scripts/test_python_json.js
+          node scripts/test_python_io.js
+          node scripts/test_python_package.js
+          node scripts/test_python_proxy.js
+          python scripts/test_catpaw_node_patches.py
+      - name: Local CatPaw and DRPY router under jitless Node
+        env:
+          MARCOMOVIE_NODE_FLAGS: --jitless
+        run: |
+          python scripts/test_catpaw_host.py
+          python scripts/test_drpy_host.py
+          python scripts/test_guard_bootstrap.py
+          python scripts/test_auete_host.py
+          python scripts/test_bttwoo_host.py
+          python scripts/test_appgz_host.py
+          node --jitless scripts/test_t4_adapter.cjs
+          python scripts/test_t4_adapter.py
+          node --jitless scripts/test_fy_adapter.cjs
+          python scripts/test_fy_adapter.py

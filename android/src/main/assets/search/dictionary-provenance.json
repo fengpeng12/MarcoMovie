@@ -1,0 +1,18 @@
+{
+  "source": "https://www.unicode.org/Public/17.0.0/ucd/Unihan.zip",
+  "source_sha256": "f7a48b2b545acfaa77b2d607ae28747404ce02baefee16396c5d2d7a8ef34b5e",
+  "output_sha256": "10e57f98e861242285d679d734084183bb9e1a13b05c54c3c065c75dbc9250ff",
+  "syllables": 414,
+  "characters": 26710,
+  "scope": "CJK BMP U+3400..U+9FFF",
+  "license": "Unicode License V3",
+  "fields": [
+    "kMandarin",
+    "kHanyuPinlu",
+    "kGradeLevel",
+    "kSimplifiedVariant"
+  ],
+  "format": "toneless pinyin (v for umlaut-u) TAB frequency-ordered Han characters",
+  "not_phrase_ime": true,
+  "simplified_first": true
+}

@@ -1,0 +1,72 @@
+{
+  "href": "/first?q=one&two",
+  "text": "  One &  Two  三  ",
+  "joined": "One & Two 三",
+  "union": [
+    [
+      "swiper-slide",
+      "featured"
+    ],
+    [
+      "last"
+    ]
+  ],
+  "missing": true,
+  "fallback": "fallback",
+  "none": null,
+  "picture": "p&q.jpg",
+  "document_text": "One &|Two|三|duplicate|last",
+  "nested": [
+    "swiper-slide",
+    "featured"
+  ],
+  "child": 2,
+  "nth": "last",
+  "attributes": [
+    [
+      "tag",
+      "next"
+    ],
+    [
+      "a",
+      "b"
+    ],
+    "",
+    "",
+    ""
+  ],
+  "attribute_selector": "中<",
+  "unclosed": "first|second",
+  "unicode_whitespace": "中文/二",
+  "empty": true,
+  "root_not_selected": true,
+  "special_document": "a",
+  "special_tag_text": [
+    "x",
+    "y",
+    "z|u",
+    "",
+    "a",
+    "b",
+    "c"
+  ],
+  "regex": {
+    "actor": "甲 乙",
+    "line": "A 线",
+    "unicode_space": "/a﻿b",
+    "unicode_word": "X X!",
+    "unicode_decimal": "N ² N",
+    "backrefs": "{\"name\":1, \"中文\":2}",
+    "group_zero": "a--a ab-b-a",
+    "literal_dollar": "$&$&",
+    "count": "xxa",
+    "negative_count": "aaa",
+    "ignorecase": "xx",
+    "multiline": "x\nx",
+    "subn": [
+      "xbx",
+      2
+    ],
+    "escapes": "\n\t\\A"
+  }
+}

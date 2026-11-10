@@ -1,0 +1,15 @@
+name: catpaw_runtime
+description: App-owned embedded CatPaw runtime bridge.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.24.0'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: CatpawRuntimePlugin

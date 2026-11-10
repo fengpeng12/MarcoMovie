@@ -1,0 +1,96 @@
+name: Embedded Node source runtime regression
+on:
+  push:
+    branches: ['fix/plugin-ports-16kb-20261107']
+    paths: ['.github/workflows/native-source-runtime.yml']
+  workflow_dispatch:
+    inputs:
+      runtime_build_run_id:
+        description: 'Completed Validate CatPaw 16 KB runtime run with verified x86_64 artifact'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  native-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            target: google_apis
+            profile: Nexus 6
+            page_size: 4096
+          - api: 35
+            target: google_apis
+            profile: pixel_7_pro
+            page_size: 4096
+          - api: 35
+            target: google_apis_ps16k
+            profile: pixel_7_pro
+            page_size: 16384
+          - api: 36
+            target: google_apis
+            profile: pixel_7_pro
+            page_size: 4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools ndk;28.2.13676358'
+      - uses: actions/download-artifact@v4
+        with:
+          name: catpaw-16kb-x86_64
+          path: node-runtime
+          run-id: ${{ inputs.runtime_build_run_id || '42361059731' }}
+          github-token: ${{ github.token }}
+      - name: Build production code and verified isolated Node fixture
+        run: |
+          export MARCOMOVIE_BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          python scripts/build_android.py
+          python android/tests/run_api23_callback_checks.py
+          python android/tests/run_checks.py
+          python android/tests/run_node_capability_checks.py
+          python scripts/build_native_source_probe.py --runtime-dir node-runtime
+          python scripts/native_elf.py android/build/unsigned.apk --output android/build/native-source-probe/production-native-elf.json
+          python scripts/native_elf.py android/build/native-source-probe/fixture.apk --require-16kb --output android/build/native-source-probe/fixture-native-elf.json
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          profile: ${{ matrix.profile }}
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          disable-animations: true
+          # Use ordinary APK installation in the runner to isolate Node/JNI
+          # from incremental-filesystem mappings on the experimental image.
+          # Match ordinary APK installation; avoid incremental-filesystem ELF mapping artifacts.
+          script: python scripts/run_native_source_probe.py --page-size ${{ matrix.page_size }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-source-evidence-api${{ matrix.api }}-${{ matrix.page_size }}
+          path: |
+            android/build/native-source-probe/scope.json
+            android/build/native-source-probe/*-native-elf.json
+            android/build/native-source-probe/device.txt
+            android/build/native-source-probe/results.json
+            android/build/native-source-probe/*.log
+            android/build/native-source-probe/logcat.txt
+          retention-days: 14

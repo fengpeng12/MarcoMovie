@@ -1,0 +1,374 @@
+name: Build Multiplatform (Android / Windows / macOS / iOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Platform to verify (tag releases always build every platform)
+        type: choice
+        default: all
+        options:
+          - all
+          - android
+          - windows
+          - macos
+          - ios
+  push:
+    branches:
+      - main
+    paths:
+      - "android/**"
+      - "lite/**"
+      - "flutter/**"
+      - "shared/**"
+      - "scripts/**"
+      - ".github/workflows/build-multiplatform.yml"
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-and-checks:
+    name: Public Guardrails & Offline Java Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.3"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+      - name: Check public content guardrails
+        run: python scripts/check_public_content.py
+      - name: Verify runtime assets before platform builds
+        run: |
+          python scripts/test_drpy_assets.py
+          python scripts/update_drpy_assets.py --check
+      - name: Check Java formatting
+        run: python scripts/format_java.py --check
+      - name: Run pure-JVM regression checks
+        run: |
+          python android/tests/run_checks.py
+          python android/tests/run_global_search_checks.py
+          python android/tests/run_scheduling_checks.py
+          python android/tests/run_live_checks.py
+          python android/tests/run_seek_checks.py
+          python android/tests/run_review_fix_checks.py
+          python android/tests/run_update_checks.py
+          python android/tests/run_tv_input_checks.py
+          python android/tests/run_local_package_checks.py
+          python android/tests/run_python_package_checks.py
+          python android/tests/run_script_proxy_checks.py
+          python android/tests/run_catvod_transport_checks.py
+          python android/tests/run_drpy_checks.py
+          python android/tests/run_node_capability_checks.py
+          python android/tests/run_emby_checks.py
+          python android/tests/run_compat_checks.py
+          python android/tests/run_favorites_checks.py
+          python android/tests/run_download_security_checks.py
+          python android/tests/run_warehouse_checks.py
+          python android/tests/run_video_filter_checks.py
+          python android/tests/run_glasswork_checks.py
+          python -m unittest discover -s flutter -p "test_*.py"
+          python scripts/test_movie_mirror.py
+          python scripts/test_platform_packages.py
+          python scripts/test_catpaw_host.py
+          python scripts/test_guard_bootstrap.py
+          python scripts/test_appgz_host.py
+          node --jitless scripts/test_t4_adapter.cjs
+          python scripts/test_t4_adapter.py
+          node --jitless scripts/test_fy_adapter.cjs
+          python scripts/test_fy_adapter.py
+      - name: Shared script runtime and native patch checks
+        run: |
+          node scripts/test_js_module_interop.cjs
+          node --jitless scripts/test_catvod_profile.cjs
+          node scripts/test_python_host.js
+          node scripts/test_python_json.js
+          node scripts/test_python_io.js
+          node scripts/test_python_package.js
+          node scripts/test_python_proxy.js
+          python scripts/test_catpaw_node_patches.py
+          python scripts/test_catpaw_runtime_bundle.py
+      - name: Check CatPaw without JIT or WebAssembly
+        env:
+          MARCOMOVIE_NODE_FLAGS: --jitless --experimental-permission --allow-worker --allow-fs-read=* --allow-fs-write=*
+        run: python scripts/test_catpaw_host.py
+
+  build-android:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'android'
+    name: Build & Verify Android TV/Phone/Tablet APK
+    needs: [verify-and-checks]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools ndk;28.2.13676358'
+      - name: Locate Android SDK Build-Tools & build APK
+        run: |
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          export MARCOMOVIE_BUILD_TOOLS="$BUILD_TOOLS"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          python scripts/build_android.py
+          python android/tests/run_api23_callback_checks.py
+          python android/tests/run_checks.py
+          python android/tests/run_guard_checks.py
+          python scripts/build_lite.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MarcoMovie-Android-APK
+          path: |
+            dist/*.apk
+            dist/*.sha256
+            android/build/build-validation.json
+
+  build-windows:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'windows'
+    name: Build Windows Desktop (x64)
+    needs: [verify-and-checks]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.3"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.38.9"
+      - name: Generate platform runner & build Windows release
+        working-directory: flutter
+        run: |
+          python prepare_platform.py
+          flutter config --enable-windows-desktop
+          flutter create --platforms=windows --project-name=marco_movie .
+          python prepare_platform.py
+          flutter pub get
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          cmake -S packages/quickjs_engine/native -B packages/quickjs_engine/native/build -A x64
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          cmake --build packages/quickjs_engine/native/build --config Release --parallel 4
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          flutter test
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          flutter build windows --release
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $version = ((Select-String pubspec.yaml -Pattern '^version:').Line -replace '^version:\s*','' -replace '\+.*','').Trim()
+          $releaseDir = "build/windows/x64/runner/Release"
+          python ../scripts/prepare_catpaw_runtime.py --platform windows --destination "$releaseDir/data/node"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          foreach ($dll in @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "concrt140.dll")) {
+            $sysDll = Join-Path $env:SystemRoot "System32\$dll"
+            if (Test-Path $sysDll) {
+              Copy-Item $sysDll -Destination $releaseDir -Force
+            }
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $zipName = "MarcoMovie-$version-windows-x64.zip"
+          Compress-Archive -Path "$releaseDir/*" -DestinationPath "dist/$zipName" -Force
+          $hash = (Get-FileHash "dist/$zipName" -Algorithm SHA256).Hash.ToLower()
+          [System.IO.File]::WriteAllText("$PWD/dist/$zipName.sha256", "$hash  $zipName`n", [System.Text.Encoding]::ASCII)
+          $setupBase = "MarcoMovie-$version-windows-setup"
+          $setupName = "$setupBase.exe"
+          $iss = @"
+          [Setup]
+          AppId={{8E9A5D2B-4F31-4C19-9A62-7B8D1E3F4A50}
+          AppName=Marco Movie
+          AppVersion=$version
+          AppPublisher=Pilipala
+          DefaultDirName={autopf}\Marco Movie
+          DefaultGroupName=Marco Movie
+          PrivilegesRequired=lowest
+          PrivilegesRequiredOverridesAllowed=dialog
+          OutputDir=dist
+          OutputBaseFilename=$setupBase
+          SetupIconFile=windows\runner\resources\app_icon.ico
+          UninstallDisplayIcon={app}\marco_movie.exe
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          CloseApplications=force
+          CloseApplicationsFilter=*.exe,*.dll
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+
+          [InstallDelete]
+          Type: filesandordirs; Name: "{app}\data\flutter_assets"
+          Type: files; Name: "{app}\data\app.so"
+          Type: files; Name: "{app}\*.dll"
+          Type: files; Name: "{app}\marco_movie.exe"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\Marco Movie"; Filename: "{app}\marco_movie.exe"; WorkingDir: "{app}"
+          Name: "{autodesktop}\Marco Movie"; Filename: "{app}\marco_movie.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\marco_movie.exe"; Description: "Launch Marco Movie"; WorkingDir: "{app}"; Flags: nowait postinstall
+          "@
+          [System.IO.File]::WriteAllText("$PWD/installer.iss", $iss, [System.Text.Encoding]::UTF8)
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc "$PWD/installer.iss"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $setupHash = (Get-FileHash "dist/$setupName" -Algorithm SHA256).Hash.ToLower()
+          [System.IO.File]::WriteAllText("$PWD/dist/$setupName.sha256", "$setupHash  $setupName`n", [System.Text.Encoding]::ASCII)
+          python ../scripts/platform_package_names.py --folder dist --platform windows --version "$version"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MarcoMovie-Windows-x64
+          path: |
+            flutter/dist/*.exe
+            flutter/dist/*.zip
+            flutter/dist/*.sha256
+
+  build-macos:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'macos'
+    name: Build macOS Desktop (Apple Silicon & Intel)
+    needs: [verify-and-checks]
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.3"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.38.9"
+      - name: Generate platform runner & build macOS release
+        working-directory: flutter
+        run: |
+          python3 prepare_platform.py
+          flutter config --enable-macos-desktop
+          flutter create --platforms=macos --project-name=marco_movie .
+          python3 prepare_platform.py
+          flutter pub get
+          cmake -S packages/quickjs_engine/native -B packages/quickjs_engine/native/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build packages/quickjs_engine/native/build --parallel 4
+          flutter test
+          VERSION="0.5.7"
+          flutter build macos --release --build-name="$VERSION" --build-number=57
+          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)
+          python3 ../scripts/prepare_catpaw_runtime.py --platform macos --destination "$APP/Contents/Frameworks/node"
+          codesign --force --deep --sign - --preserve-metadata=entitlements "$APP"
+          mkdir -p dist
+          ZIP_NAME="MarcoMovie-$VERSION-macos.zip"
+          (cd build/macos/Build/Products/Release && ditto -c -k --sequesterRsrc --keepParent *.app "$GITHUB_WORKSPACE/flutter/dist/$ZIP_NAME")
+          (cd dist && shasum -a 256 "$ZIP_NAME" > "$ZIP_NAME.sha256")
+          python3 ../scripts/platform_package_names.py --folder dist --platform macos --version "$VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MarcoMovie-macOS-App
+          path: |
+            flutter/dist/*.zip
+            flutter/dist/*.sha256
+
+  build-ios:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'ios'
+    name: Build iOS & iPadOS (.ipa unsigned)
+    needs: [verify-and-checks]
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.3"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.38.9"
+      - name: Generate platform runner & build iOS/iPadOS IPA
+        working-directory: flutter
+        run: |
+          python3 prepare_platform.py
+          flutter create --platforms=ios --org com.pilipala --project-name=marco_movie .
+          python3 prepare_platform.py
+          python3 ../scripts/prepare_catpaw_runtime.py --platform ios --destination packages/catpaw_runtime/ios/Frameworks
+          flutter pub get
+          cmake -S packages/quickjs_engine/native -B packages/quickjs_engine/native/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build packages/quickjs_engine/native/build --parallel 4
+          flutter test
+          if ! flutter build ios --release --no-codesign --verbose > build/ios-build.log 2>&1; then
+            tail -n 160 build/ios-build.log
+            exit 1
+          fi
+          python3 patch_ios_ipa.py build/ios/iphoneos/Runner.app
+          VERSION=$(sed -n 's/^version:[[:space:]]*\([^+]*\).*/\1/p' pubspec.yaml)
+          IPA_NAME="MarcoMovie-$VERSION-ios-unsigned.ipa"
+          mkdir -p build/ios/ipa/Payload dist
+          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          (cd build/ios/ipa && zip -qry "$GITHUB_WORKSPACE/flutter/dist/$IPA_NAME" Payload)
+          (cd dist && shasum -a 256 "$IPA_NAME" > "$IPA_NAME.sha256")
+          python3 ../scripts/platform_package_names.py --folder dist --platform ios --version "$VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MarcoMovie-iOS-iPadOS-IPA
+          path: |
+            flutter/dist/*.ipa
+            flutter/dist/*.sha256
+
+      - name: Retain iOS build diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-build-diagnostics
+          retention-days: 7
+          path: |
+            flutter/build/ios-build.log
+            flutter/ios/Pods/Target Support Files/catpaw_runtime/*.xcconfig
+
+  publish-release:
+    name: Attach Multiplatform Assets & Promote Official Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-android, build-windows, build-macos, build-ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          pattern: MarcoMovie-*
+          merge-multiple: true
+      - name: Upload assets & mark release as Latest official release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          VERSION="${VERSION%-preview}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "${{ github.repository }}" release-artifacts/MarcoMovie-*-windows-*.exe* release-artifacts/MarcoMovie-*-windows-*.zip* release-artifacts/MarcoMovie-*-macos*.zip* release-artifacts/MarcoMovie-*-ios-*.ipa* --clobber
+            # Keep draft releases private until all official-signed APKs, source,
+            # platform packages and checksums have been verified together.
+            if [ "$(gh release view "$TAG" --repo "${{ github.repository }}" --json isDraft --jq .isDraft)" = "false" ]; then
+              gh release edit "$TAG" --repo "${{ github.repository }}" --prerelease=false --latest --title "Marco Movie $VERSION"
+            fi
+          fi

@@ -1,0 +1,167 @@
+name: iOS embedded source runtime regression
+on:
+  workflow_dispatch:
+    inputs:
+      experiment:
+        description: Runtime to validate independently
+        type: choice
+        required: true
+        default: native
+        options: [native, cpython, cpython_flutter]
+      probe_arch:
+        description: CPython experiment architecture (ignored for native)
+        type: choice
+        required: true
+        default: both
+        options: [both, arm64, x86_64]
+  push:
+    branches: ['main', 'fix/plugin-ports-16kb-*']
+    paths:
+      - '.github/workflows/ios-runtime.yml'
+      - 'scripts/ios_runtime/**'
+      - 'scripts/fixtures/python_*'
+      - 'scripts/fixtures/catvod_native_*'
+      - 'scripts/run_ios_runtime_probe.py'
+      - 'scripts/test_ios_runtime_selection.py'
+      - 'flutter/packages/catpaw_runtime/ios/Classes/**'
+      - 'flutter/packages/quickjs_engine/**'
+      - 'android/src/main/assets/python-host/**'
+      - 'android/src/main/assets/js-host/**'
+      - 'shared/catpaw/**'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.experiment || 'native' }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  embedded:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.experiment == 'native' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run production engine in an iPhone simulator
+        run: |
+          python3 scripts/test_ios_runtime_selection.py
+          python3 scripts/run_ios_runtime_probe.py
+      - name: Retain runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-embedded-runtime-evidence-${{ matrix.runner }}
+          retention-days: 7
+          path: |
+            verification/ios-runtime/result.json
+            ~/Library/Logs/DiagnosticReports/*RuntimeProbe*
+            ~/Library/Logs/DiagnosticReports/*Node*
+  cpython-experiment:
+    name: Experimental CPython (${{ matrix.runner }})
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.experiment == 'cpython' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(inputs.probe_arch == 'arm64' && '[{"runner":"macos-15","arch":"arm64"}]' ||
+          inputs.probe_arch == 'x86_64' && '[{"runner":"macos-15-intel","arch":"x86_64"}]' ||
+          '[{"runner":"macos-15","arch":"arm64"},{"runner":"macos-15-intel","arch":"x86_64"}]') }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Record native toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          uname -m
+      - name: Run independent native CPython app
+        run: >-
+          python scripts/ios_cpython/run_cpython_probe.py
+          --arch '${{ matrix.arch }}'
+          --output-dir "$RUNNER_TEMP/ios-cpython-results"
+          --cache-dir "$RUNNER_TEMP/ios-cpython-downloads"
+      - name: Upload execution evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-cpython-evidence-${{ matrix.runner }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/ios-cpython-results/**/inputs.json
+            ${{ runner.temp }}/ios-cpython-results/**/app-result.json
+            ${{ runner.temp }}/ios-cpython-results/**/app-watchdog.json
+            ${{ runner.temp }}/ios-cpython-results/**/result.json
+            ${{ runner.temp }}/ios-cpython-results/**/diagnostics/*
+
+  cpython-flutter-experiment:
+    name: Experimental Flutter CPython (${{ matrix.runner }})
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.experiment == 'cpython_flutter' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(inputs.probe_arch == 'arm64' && '[{"runner":"macos-15","arch":"arm64"}]' ||
+          inputs.probe_arch == 'x86_64' && '[{"runner":"macos-15-intel","arch":"x86_64"}]' ||
+          '[{"runner":"macos-15","arch":"arm64"},{"runner":"macos-15-intel","arch":"x86_64"}]') }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check simulator availability before building
+        run: |
+          python scripts/ios_simulator_diagnostics.py --output-dir "$RUNNER_TEMP/ios-cpython-flutter-readiness"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'ios-cpython-flutter-readiness/diagnostics.json').read_text())
+          final = next((item for item in report['observations'] if item['name'] == 'default_devices_second'), {})
+          if final.get('status') != 'completed' or final.get('exit_code') != 0 or report.get('second_available_ios_devices', 0) < 1:
+              raise SystemExit('Simulator service is not ready; no application validation was attempted')
+          print('Simulator inventory is ready; application runtime checks remain required')
+          PY
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.9'
+          channel: stable
+          cache: true
+      - name: Run isolated Flutter engine coexistence experiment
+        run: >-
+          python scripts/ios_cpython_flutter/run_flutter_probe.py
+          --arch '${{ matrix.arch }}'
+          --output-dir "$RUNNER_TEMP/ios-cpython-flutter-results"
+          --cache-dir "$RUNNER_TEMP/ios-cpython-downloads"
+      - name: Upload experimental evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-cpython-flutter-evidence-${{ matrix.runner }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/ios-cpython-flutter-results/**/inputs.json
+            ${{ runner.temp }}/ios-cpython-flutter-results/**/app-result.json
+            ${{ runner.temp }}/ios-cpython-flutter-results/**/result.json
+            ${{ runner.temp }}/ios-cpython-flutter-results/**/diagnostics/*
+            ${{ runner.temp }}/ios-cpython-flutter-results/**/build.log
+            ${{ runner.temp }}/ios-cpython-flutter-readiness/diagnostics.json
+            ${{ runner.temp }}/ios-cpython-flutter-readiness/logs/*.txt

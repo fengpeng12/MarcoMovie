@@ -1,0 +1,15 @@
+[
+  {
+    "name": "marco-native-decoders",
+    "version": "1.5.1-armv7-v1",
+    "license": "LGPL-2.1-or-later; Apache-2.0; BSD-3-Clause",
+    "url": "https://github.com/Pilipala9919/MarcoMovie/releases/download/decoders-1.5.1-armv7-v1/marco-decoders-armv7.zip",
+    "sha256": "2fb8de81059a09a5d8117c32b5c3c2df3bea50759dd5aa18ba2fa7d8a0743afc",
+    "java_classes": false,
+    "native_members": [
+      "lib/armeabi-v7a/libffmpegJNI.so",
+      "lib/armeabi-v7a/libgav1JNI.so",
+      "lib/armeabi-v7a/libvpxV2JNI.so"
+    ]
+  }
+]

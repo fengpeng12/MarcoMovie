@@ -1,0 +1,60 @@
+name: Cross-platform HTTP and Python source regression
+on:
+  workflow_dispatch:
+  push:
+    branches: ['main', 'fix/plugin-ports-16kb-*']
+    paths:
+      - '.github/workflows/http-source.yml'
+      - 'flutter/src/core/cms_client.dart'
+      - 'flutter/src/core/models.dart'
+      - 'flutter/src/core/source_playback.dart'
+      - 'flutter/test/http_t4_test.dart'
+      - 'flutter/test/subscription_redirect_test.dart'
+      - 'flutter/test/source_playback_test.dart'
+      - 'flutter/src/core/python_source_assets.dart'
+      - 'flutter/test/python*.dart'
+      - 'android/src/main/assets/python-host/**'
+      - 'scripts/prepare_python_html.py'
+permissions:
+  contents: read
+jobs:
+  http:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.9'
+          channel: stable
+          cache: true
+      - run: python flutter/prepare_platform.py
+      - run: flutter pub get
+        working-directory: flutter
+      - name: Configure Windows test runtime
+        if: runner.os == 'Windows'
+        working-directory: flutter
+        run: cmake -S packages/quickjs_engine/native -B packages/quickjs_engine/native/build -A x64
+      - name: Configure macOS test runtime
+        if: runner.os == 'macOS'
+        working-directory: flutter
+        run: cmake -S packages/quickjs_engine/native -B packages/quickjs_engine/native/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build production QuickJS test runtime
+        working-directory: flutter
+        run: cmake --build packages/quickjs_engine/native/build --config Release --parallel 4
+      - name: Test actual HTTP transport with local fixtures
+        working-directory: flutter
+        run: flutter test --reporter json test/http_t4_test.dart test/subscription_redirect_test.dart test/source_playback_test.dart test/python_html_test.dart test/python_host_compat_test.dart test/python_remote_modules_test.dart test/python_package_test.dart test/python_json_test.dart test/python_io_test.dart > http-source-results.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: http-source-evidence-${{ matrix.os }}
+          path: flutter/http-source-results.jsonl
+          retention-days: 14

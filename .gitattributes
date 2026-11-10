@@ -1,0 +1,16 @@
+* text=auto eol=lf
+*.py text eol=lf
+*.java text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.png binary
+
+# Text assets must retain identical bytes in working trees and source archives.
+*.txt text eol=lf
+*.yaml text eol=lf
+*.tsv text eol=lf
+*.js text eol=lf
+*.cjs text eol=lf
+*.mjs text eol=lf
+*.LICENSE text eol=lf
+android/src/main/assets/decoder-licenses/* text eol=lf

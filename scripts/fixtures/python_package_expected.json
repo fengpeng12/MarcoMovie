@@ -1,0 +1,259 @@
+{
+  "module_locations": [
+    true,
+    true,
+    true
+  ],
+  "module_data": [
+    "Package fixture 中文🎬",
+    "helper local bytes"
+  ],
+  "json_data": {
+    "title": "Package fixture 中文🎬",
+    "count": 2
+  },
+  "text_capabilities": [
+    true,
+    false,
+    true,
+    false,
+    null
+  ],
+  "context_closed": true,
+  "relative_parent": "parent resource",
+  "unicode_filename": "本地只读",
+  "default_text": "first\nsecond\nlast\n",
+  "normalized_relative": "first\nsecond\nlast\n",
+  "absolute_from_file": "first\nsecond\nlast\n",
+  "main_code_read": true,
+  "binary_read": [
+    [
+      0,
+      255
+    ],
+    2,
+    [
+      10
+    ],
+    [
+      128
+    ],
+    [
+      65,
+      10,
+      66
+    ]
+  ],
+  "binary_iteration": [
+    [
+      0,
+      255,
+      10
+    ],
+    [
+      128,
+      65,
+      10
+    ],
+    [
+      66
+    ]
+  ],
+  "binary_seek": [
+    5,
+    [
+      10,
+      66
+    ],
+    1,
+    [
+      255
+    ],
+    20,
+    []
+  ],
+  "binary_readlines": [
+    [
+      0,
+      255,
+      10
+    ]
+  ],
+  "binary_capabilities": [
+    true,
+    false,
+    true,
+    false,
+    null,
+    "rb",
+    "data/payload.bin"
+  ],
+  "empty_binary": [
+    [],
+    []
+  ],
+  "binary_closed": true,
+  "lines_universal": [
+    "甲🎬\n",
+    "beta\n",
+    "gamma\n",
+    "last"
+  ],
+  "read_universal": "甲🎬\nbeta\ngamma\nlast",
+  "partial_universal": [
+    "甲🎬",
+    "\n",
+    "beta\n",
+    "gamma\nlast"
+  ],
+  "newlines_universal": null,
+  "seen_newlines_universal": [
+    "\r",
+    "\n",
+    "\r\n"
+  ],
+  "text_cookie_universal": true,
+  "text_end_universal": [
+    24,
+    "",
+    24
+  ],
+  "lines_preserved": [
+    "甲🎬\r\n",
+    "beta\r",
+    "gamma\n",
+    "last"
+  ],
+  "read_preserved": "甲🎬\r\nbeta\rgamma\nlast",
+  "partial_preserved": [
+    "甲🎬",
+    "\r",
+    "\n",
+    "beta\rgamma\nlast"
+  ],
+  "newlines_preserved": null,
+  "seen_newlines_preserved": [
+    "\r",
+    "\n",
+    "\r\n"
+  ],
+  "text_cookie_preserved": true,
+  "text_end_preserved": [
+    24,
+    "",
+    24
+  ],
+  "lines_lf": [
+    "甲🎬\r\n",
+    "beta\rgamma\n",
+    "last"
+  ],
+  "read_lf": "甲🎬\r\nbeta\rgamma\nlast",
+  "partial_lf": [
+    "甲🎬",
+    "\r",
+    "\n",
+    "beta\rgamma\nlast"
+  ],
+  "newlines_lf": null,
+  "seen_newlines_lf": null,
+  "text_cookie_lf": true,
+  "text_end_lf": [
+    24,
+    "",
+    24
+  ],
+  "lines_cr": [
+    "甲🎬\r",
+    "\nbeta\r",
+    "gamma\nlast"
+  ],
+  "read_cr": "甲🎬\r\nbeta\rgamma\nlast",
+  "partial_cr": [
+    "甲🎬",
+    "\r",
+    "\nbeta\r",
+    "gamma\nlast"
+  ],
+  "newlines_cr": null,
+  "seen_newlines_cr": null,
+  "text_cookie_cr": true,
+  "text_end_cr": [
+    24,
+    "",
+    24
+  ],
+  "lines_crlf": [
+    "甲🎬\r\n",
+    "beta\rgamma\nlast"
+  ],
+  "read_crlf": "甲🎬\r\nbeta\rgamma\nlast",
+  "partial_crlf": [
+    "甲🎬",
+    "\r",
+    "\nbeta\rgamma\nlast",
+    ""
+  ],
+  "newlines_crlf": null,
+  "seen_newlines_crlf": null,
+  "text_cookie_crlf": true,
+  "text_end_crlf": [
+    24,
+    "",
+    24
+  ],
+  "utf8_positions": [
+    "甲",
+    3,
+    "🎬",
+    7,
+    "\n",
+    8
+  ],
+  "text_size_zero": [
+    "",
+    0,
+    "",
+    0
+  ],
+  "text_hint": [
+    "甲🎬\n"
+  ],
+  "utf8_bom": "﻿甲\nlast",
+  "bom_read_zero": [
+    "",
+    0
+  ],
+  "bom_text": [
+    "甲",
+    6,
+    "\nlast",
+    12
+  ],
+  "bom_rewind": "甲\nlast",
+  "bom_empty": "",
+  "portable_errors": [
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "FileNotFoundError",
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "UnicodeDecodeError",
+    "UnsupportedOperation",
+    "ValueError",
+    "TypeError",
+    "OSError",
+    "UnsupportedOperation",
+    "UnsupportedOperation"
+  ],
+  "directory_is_os_error": true,
+  "empty_writelines": null,
+  "context_exception": [
+    "propagated",
+    true
+  ]
+}

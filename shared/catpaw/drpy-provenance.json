@@ -1,0 +1,409 @@
+{
+  "runtime": "drpy2-ca23ffdb-1",
+  "repository": "https://github.com/hjdhnx/dr_py",
+  "commit": "ca23ffdbf5e429c5893ac60158668fc5af7af192",
+  "license": "LGPL-3.0-only",
+  "sources": [
+    {
+      "path": "libs/drpy2.js",
+      "url": "https://raw.githubusercontent.com/hjdhnx/dr_py/ca23ffdbf5e429c5893ac60158668fc5af7af192/libs/drpy2.js",
+      "sha256": "c014ac79c5c2b275c2121c33d4155934df244b3b68ce720801e72f8e9b86a85d",
+      "reviewedSha256": "de90c78a761d8c612f26caefde6141d1a57fc1b8be131294ca03fc1319fc45f4"
+    },
+    {
+      "path": "libs/gbk.js",
+      "url": "https://raw.githubusercontent.com/hjdhnx/dr_py/ca23ffdbf5e429c5893ac60158668fc5af7af192/libs/gbk.js",
+      "sha256": "cf46ccf34d32ce873f021fc5e94c43a73afcb7a551004be8d6a02e94986d0696",
+      "reviewedSha256": "cf46ccf34d32ce873f021fc5e94c43a73afcb7a551004be8d6a02e94986d0696"
+    },
+    {
+      "path": "js/妯℃澘.js",
+      "url": "https://raw.githubusercontent.com/hjdhnx/dr_py/ca23ffdbf5e429c5893ac60158668fc5af7af192/js/妯℃澘.js",
+      "sha256": "1da00bdcb30ab1a7875a84ee6fc82256e705330b6cc9d84144f163df68b665cb",
+      "reviewedSha256": "1da00bdcb30ab1a7875a84ee6fc82256e705330b6cc9d84144f163df68b665cb"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/hjdhnx/dr_py/ca23ffdbf5e429c5893ac60158668fc5af7af192/LICENSE",
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+      "reviewedSha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+    }
+  ],
+  "dependencyReconstruction": "Opaque upstream combined dependency bundle is not redistributed; rebuilt from explicit npm pins.",
+  "supplementalNotice": {
+    "package": "boolbase@1.0.0",
+    "url": "https://raw.githubusercontent.com/fb55/boolbase/54811f01c797a6bb1c263183ae90b7dd627e0638/LICENSE",
+    "reason": "npm manifest declares ISC; tarball omits license text",
+    "sha256": "cdf4d87ae0a6c160227263bf4e39a0a10e30e89ae7256e0f7ac7bde0836552c6"
+  },
+  "packages": [
+    {
+      "package": "node_modules/@jsep-plugin/assignment",
+      "version": "1.4.0",
+      "resolved": "https://registry.npmjs.org/@jsep-plugin/assignment/-/assignment-1.4.0.tgz",
+      "integrity": "sha512-nw2Px23Eirx0PFTVoPrb3FEq9Wkmg6vxcDtt38MtBCf1G0tjLCB9cK+3seOXyiw+6+aalgYhvJabQbWwMVKlEQ==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/@jsep-plugin/regex",
+      "version": "1.1.0",
+      "resolved": "https://registry.npmjs.org/@jsep-plugin/regex/-/regex-1.1.0.tgz",
+      "integrity": "sha512-2Vkbda+XRjK6VTI6Lrh0sNBuMT8mZ51EhqMvO+V2rSdmqjs7NAGssxPZfkL23EFzYfSrvxyd1ZjOdqPQMM50og==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/a-sync-waterfall",
+      "version": "1.0.1",
+      "resolved": "https://registry.npmjs.org/a-sync-waterfall/-/a-sync-waterfall-1.0.1.tgz",
+      "integrity": "sha512-RYTOHHdWipFUliRFMCS4X2Yn2X8M87V/OpSqWzKKOGhzqyUxzyVmhHDH9sAvG+ZuQf/TAOFsLCpMw09I1ufUnA==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/asap",
+      "version": "2.0.6",
+      "resolved": "https://registry.npmjs.org/asap/-/asap-2.0.6.tgz",
+      "integrity": "sha512-BSHWgDSAiKs50o2Re8ppvp3seVHXSRM44cdSsT9FfNEUUZLOGWVCsiWaRPWM1Znn+mqZ1OfVZ3z3DWEzSp7hRA==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE.md"
+      ]
+    },
+    {
+      "package": "node_modules/boolbase",
+      "version": "1.0.0",
+      "resolved": "https://registry.npmjs.org/boolbase/-/boolbase-1.0.0.tgz",
+      "integrity": "sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==",
+      "license": "ISC",
+      "noticeFiles": [
+        "boolbase-LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/cheerio",
+      "version": "1.0.0-rc.12",
+      "resolved": "https://registry.npmjs.org/cheerio/-/cheerio-1.0.0-rc.12.tgz",
+      "integrity": "sha512-VqR8m68vM46BNnuZ5NtnGBKIE/DfN0cRIzg9n40EIq9NOv90ayxLBXA8fXC5gquFRGJSTRqBq25Jt2ECLR431Q==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/cheerio-select",
+      "version": "2.1.0",
+      "resolved": "https://registry.npmjs.org/cheerio-select/-/cheerio-select-2.1.0.tgz",
+      "integrity": "sha512-9v9kG0LvzrlcungtnJtpGNxY+fzECQKhK4EGJX2vByejiMX84MFNQw4UxPJl3bFbTMw+Dfs37XaIkCwTZfLh4g==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/commander",
+      "version": "5.1.0",
+      "resolved": "https://registry.npmjs.org/commander/-/commander-5.1.0.tgz",
+      "integrity": "sha512-P0CysNDQ7rtVw4QIQtm+MRxV66vKFSvlsQvGYXZWR3qFU0jlMKHZZZgw8e+8DSah4UDKMqnknRDQz+xuQXQ/Zg==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/crypto-js",
+      "version": "4.2.0",
+      "resolved": "https://registry.npmjs.org/crypto-js/-/crypto-js-4.2.0.tgz",
+      "integrity": "sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/css-select",
+      "version": "5.2.2",
+      "resolved": "https://registry.npmjs.org/css-select/-/css-select-5.2.2.tgz",
+      "integrity": "sha512-TizTzUddG/xYLA3NXodFM0fSbNizXjOKhqiQQwvhlspadZokn1KDy0NZFS0wuEubIYAV5/c1/lAr0TaaFXEXzw==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/css-what",
+      "version": "6.2.2",
+      "resolved": "https://registry.npmjs.org/css-what/-/css-what-6.2.2.tgz",
+      "integrity": "sha512-u/O3vwbptzhMs3L1fQE82ZSLHQQfto5gyZzwteVIEyeaY5Fc7R4dapF/BvRoSYFeqfBk4m0V1Vafq5Pjv25wvA==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/dom-serializer",
+      "version": "2.0.0",
+      "resolved": "https://registry.npmjs.org/dom-serializer/-/dom-serializer-2.0.0.tgz",
+      "integrity": "sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/domelementtype",
+      "version": "2.3.0",
+      "resolved": "https://registry.npmjs.org/domelementtype/-/domelementtype-2.3.0.tgz",
+      "integrity": "sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/domhandler",
+      "version": "5.0.3",
+      "resolved": "https://registry.npmjs.org/domhandler/-/domhandler-5.0.3.tgz",
+      "integrity": "sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/domutils",
+      "version": "3.2.2",
+      "resolved": "https://registry.npmjs.org/domutils/-/domutils-3.2.2.tgz",
+      "integrity": "sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/entities",
+      "version": "4.5.0",
+      "resolved": "https://registry.npmjs.org/entities/-/entities-4.5.0.tgz",
+      "integrity": "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/htmlparser2",
+      "version": "8.0.2",
+      "resolved": "https://registry.npmjs.org/htmlparser2/-/htmlparser2-8.0.2.tgz",
+      "integrity": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/jsencrypt",
+      "version": "3.3.2",
+      "resolved": "https://registry.npmjs.org/jsencrypt/-/jsencrypt-3.3.2.tgz",
+      "integrity": "sha512-arQR1R1ESGdAxY7ZheWr12wCaF2yF47v5qpB76TtV64H1pyGudk9Hvw8Y9tb/FiTIaaTRUyaSnm5T/Y53Ghm/A==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE.txt"
+      ]
+    },
+    {
+      "package": "node_modules/jsep",
+      "version": "1.6.0",
+      "resolved": "https://registry.npmjs.org/jsep/-/jsep-1.6.0.tgz",
+      "integrity": "sha512-Y8Tr54CX7B5YGAwo7/n8eumidEX3Opx98RyyQVnlHqUaZcPA8uUzL2v1rshr9ypW9Q6hNjfJtg3sL+8kaNE7TA==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/jsonpath-plus",
+      "version": "10.3.0",
+      "resolved": "https://registry.npmjs.org/jsonpath-plus/-/jsonpath-plus-10.3.0.tgz",
+      "integrity": "sha512-8TNmfeTCk2Le33A3vRRwtuworG/L5RrgMvdjhKZxvyShO+mBu2fP50OWUjRLNtvw344DdDarFh9buFAZs5ujeA==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/nth-check",
+      "version": "2.1.1",
+      "resolved": "https://registry.npmjs.org/nth-check/-/nth-check-2.1.1.tgz",
+      "integrity": "sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/nunjucks",
+      "version": "3.2.4",
+      "resolved": "https://registry.npmjs.org/nunjucks/-/nunjucks-3.2.4.tgz",
+      "integrity": "sha512-26XRV6BhkgK0VOxfbU5cQI+ICFUtMLixv1noZn1tGU38kQH5A5nmmbk/O45xdyBhD1esk47nKrY0mvQpZIhRjQ==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/parse5",
+      "version": "7.3.0",
+      "resolved": "https://registry.npmjs.org/parse5/-/parse5-7.3.0.tgz",
+      "integrity": "sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/parse5-htmlparser2-tree-adapter",
+      "version": "7.1.0",
+      "resolved": "https://registry.npmjs.org/parse5-htmlparser2-tree-adapter/-/parse5-htmlparser2-tree-adapter-7.1.0.tgz",
+      "integrity": "sha512-ruw5xyKs6lrpo9x9rCZqZZnIUntICjQAd0Wsmp396Ul9lN/h+ifgVV1x1gZHi8euej6wTfpqX8j+BFQxF0NS/g==",
+      "license": "MIT",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "package": "node_modules/parse5/node_modules/entities",
+      "version": "6.0.1",
+      "resolved": "https://registry.npmjs.org/entities/-/entities-6.0.1.tgz",
+      "integrity": "sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g==",
+      "license": "BSD-2-Clause",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    }
+  ],
+  "bundler": "esbuild@0.25.12",
+  "transformations": [
+    "Replace five module imports with pinned local dependencies",
+    "Expose default Spider as context-local __drpy",
+    "Resolve nested helper imports against their importing module, preserving eval/request behavior",
+    "Disable default OCR endpoint and reject OCR calls",
+    "Propagate init errors instead of logging and swallowing them",
+    "Wrap templates in their own module scope",
+    "Remove only init_test demo comments and commented RFC1918 examples",
+    "Remove the upstream remote placeholder image from empty category results",
+    "Split PEM serializer delimiter literals by equivalent string concatenation; no scanner exemption for private values"
+  ],
+  "generated": {
+    "drpy-core.js": "e93f2deeb177ab43cc1c10e7cb505cbefd55da63da7d798f95c74a0da0b82629",
+    "drpy-dependencies.js": "d72880e3506074dfce8b87804a3a15a3ef663a4e399bfb477ad51d1c1f238417"
+  },
+  "appOwnedAdapters": [
+    {
+      "adapter": "dm84-v1",
+      "license": "GPL-3.0-only",
+      "implementation": "Original endpoint-parameterized interoperability adapter and bounded ZIP/DEX data reader; no plugin binaries or endpoint constants distributed.",
+      "reviewedImportedArtifactSha256": [
+        "e7375830bcd065b264239e1f0e7da4c99d75abf71e1b6edf50e225ae8b0f4b7e",
+        "da3f3a7afcfcded4d58d9c3a574dfb5cb2ddcc3db4290b7d8b3a7346f9ee8096"
+      ],
+      "selection": "Exact reviewed artifact hash; unknown artifacts fail explicitly.",
+      "execution": "Bootstrap never executes imported bytecode or native code."
+    },
+    {
+      "adapter": "auete-v1",
+      "license": "GPL-3.0-only",
+      "implementation": "Original endpoint-parameterized interoperability adapter; origin and media base read as data from exact reviewed DEX code positions. No page script, constructor or native code is executed.",
+      "reviewedImportedArtifactSha256": [
+        "e7375830bcd065b264239e1f0e7da4c99d75abf71e1b6edf50e225ae8b0f4b7e",
+        "da3f3a7afcfcded4d58d9c3a574dfb5cb2ddcc3db4290b7d8b3a7346f9ee8096"
+      ],
+      "literalLocations": [
+        {
+          "method": "Auete.<init>",
+          "codeItemSha256": "3841e63ceeae29689e3b5d5b7f92b4d8177278dad5084818c2476df489128c17",
+          "unit": 3,
+          "field": "yq"
+        },
+        {
+          "method": "Auete.playerContent",
+          "codeItemSha256": "80e9d52800eae7b12c2278b2dd00e1d4677252d677e9185b594ef23ecd53b6b8",
+          "unit": 299
+        }
+      ],
+      "verification": "Human verification challenges fail explicitly; no automatic bypass or OCR."
+    },
+    {
+      "adapter": "bttwoo-v1",
+      "license": "GPL-3.0-only",
+      "implementation": "Original parameterized HTTP/HTML interoperability adapter. Host, user agent and data-encoding key are read from exact reviewed static short-array payloads. No imported bytecode, initializer or page script is executed.",
+      "reviewedImportedArtifactSha256": [
+        "e7375830bcd065b264239e1f0e7da4c99d75abf71e1b6edf50e225ae8b0f4b7e",
+        "da3f3a7afcfcded4d58d9c3a574dfb5cb2ddcc3db4290b7d8b3a7346f9ee8096"
+      ],
+      "literalLocations": [
+        {
+          "method": "Bttwoo.<clinit>",
+          "codeItemSha256": "b4511e08ff36b2c803be31a2dd8021f2a049fbabc587e805919e15b45ca7c284",
+          "payloadUnit": 10,
+          "elementWidth": 2,
+          "count": 686,
+          "field": "short"
+        },
+        {
+          "method": "ME.<clinit>",
+          "codeItemSha256": "3dc0b269b870de31f4fdfa39e54778e8cc5d9cfb6d83c8903dd80e935ae1227e",
+          "payloadUnit": 316,
+          "elementWidth": 2,
+          "count": 1667,
+          "field": "short"
+        }
+      ],
+      "verifiedConsumers": {
+        "Bttwoo.<init>": "c47d9c1c569855288c1bf15c852120bb3c99c9bee1ccba4d9c8d93088f61094b",
+        "Bttwoo.encodePlayKey": "5b7309680b6db8a307e62cb99b055d4130e71a278cbdf092c830542cad3cdb8e"
+      },
+      "selection": "Exact reviewed artifact and code fingerprints; mismatch fails explicitly.",
+      "verification": "Catalog retains original VIP exclusions; challenges fail explicitly. No device decoding claim."
+    },
+    {
+      "adapter": "appgz-v1",
+      "status": "experimental-protocol-not-device-accepted",
+      "license": "GPL-3.0-only",
+      "implementation": "Original parameterized Appgz JSON/RSA/AES interoperability adapter, distinct from the CatPaw Guazi source. Imported code is never executed; constants are data-only exact reviewed DEX slices. RSA receives only caller-provided keys and bounded 128-byte RSA blocks (1023/1024-bit modulus).",
+      "reviewedImportedArtifactSha256": "e7375830bcd065b264239e1f0e7da4c99d75abf71e1b6edf50e225ae8b0f4b7e",
+      "literalLocations": [
+        {
+          "method": "Appgz.<clinit>",
+          "codeItemSha256": "73ceb72abb62d4326e733c8d9659e17aef072981e30718f346bf2f657bb83e6e",
+          "payloadUnit": 38,
+          "elementWidth": 2,
+          "count": 3104,
+          "field": "short"
+        }
+      ],
+      "verification": "Synthetic protocol checks do not establish upstream or device playback. Source HTTP failures remain errors; no automatic identity reset, repeated registration, captcha bypass, or replacement with a different source. Android manifest ad-removal proxy behavior is not reproduced."
+    },
+    {
+      "adapter": "t4-v1",
+      "status": "implemented-pending-upstream-and-device-acceptance",
+      "license": "GPL-3.0-only",
+      "implementation": "Original CMS protocol adapter with data-only extraction of encrypted extension configuration from reviewed user-supplied plugins. Imported native code is never executed.",
+      "reviewedImportedArtifactSha256": [
+        "e7375830bcd065b264239e1f0e7da4c99d75abf71e1b6edf50e225ae8b0f4b7e",
+        "da3f3a7afcfcded4d58d9c3a574dfb5cb2ddcc3db4290b7d8b3a7346f9ee8096"
+      ],
+      "reviewedNativeSha256": [
+        "fac9e3937d9928e437ebff79bc5164df418a6adb212494ef21c273579b045dcb",
+        "d5d8adee01e1bdc4c18b445e19ce7c94fb296ca6dce6f18a08786504fc961f01"
+      ],
+      "verification": "Exact artifact and native fingerprints; per-source encrypted configuration; real pagination and source identity preserved. Verification challenges and unavailable media stay explicit. No physical-device playback claim."
+    }
+  ]
+}

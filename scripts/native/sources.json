@@ -1,0 +1,32 @@
+{
+  "media": {
+    "url": "https://github.com/androidx/media.git",
+    "commit": "76088cd6af7f263aba238b7a48d64bd4f060cb8b",
+    "version": "1.5.1"
+  },
+  "ffmpeg": {
+    "url": "https://github.com/FFmpeg/FFmpeg.git",
+    "commit": "f1e3a2bf7a2f2cde936d1ed97f09a26853d20125",
+    "version": "6.1.6"
+  },
+  "libgav1": {
+    "url": "https://chromium.googlesource.com/codecs/libgav1",
+    "commit": "e386d8f1fb983200972d159b9be47fd5d0776708",
+    "version": "0.19.0"
+  },
+  "cpu_features": {
+    "url": "https://github.com/google/cpu_features.git",
+    "commit": "ba4bffa86cbb5456bdb34426ad22b9551278e2c0",
+    "version": "0.9.0"
+  },
+  "abseil": {
+    "url": "https://github.com/abseil/abseil-cpp.git",
+    "commit": "d7aaad83b488fd62bd51c81ecf16cd938532cc0a",
+    "version": "20240116.2"
+  },
+  "libvpx": {
+    "url": "https://github.com/webmproject/libvpx.git",
+    "commit": "d168454ecd099805c675d4a98c66f4891373302a",
+    "version": "1.15.2"
+  }
+}

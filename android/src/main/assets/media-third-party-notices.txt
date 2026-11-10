@@ -1,0 +1,326 @@
+Marco Movie - Media playback dependency licenses and notices
+
+Pinned Media3 runtime dependencies, generated 2026-10-26.
+These libraries are distributed unmodified; the Marco Movie adapter is independent.
+
+Attribution:
+AndroidX / Media3: The Android Open Source Project and respective source contributors.
+Guava / failureaccess: Google Inc. and Guava contributors.
+Kotlin standard library and Java annotations: JetBrains s.r.o. and contributors.
+
+All components listed below declare Apache License 2.0 in their publisher Maven POM, including inherited parent declarations.
+The complete Apache License text is reproduced once because the fetched Media3, Guava, and Kotlin license texts are identical.
+
+Pinned artifact inventory:
+- androidx.annotation:annotation:1.6.0
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/annotation/annotation/1.6.0/annotation-1.6.0.jar
+  SHA-256: fbc64f5c44a7added8b6eab517cf7d70555e25153bf5d44a6ed9b0e5312f7de9
+- androidx.annotation:annotation-experimental:1.3.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/annotation/annotation-experimental/1.3.1/annotation-experimental-1.3.1.aar
+  SHA-256: e4d49dc3880b7b7437ea54ce71461e02897faa4e1ecc53e63ecadb1a14c20c9c
+- androidx.annotation:annotation-jvm:1.6.0
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/annotation/annotation-jvm/1.6.0/annotation-jvm-1.6.0.jar
+  SHA-256: 60b10b5ef5769b79570172e015b8159405c92f034ba88b9391a977589c9deb4e
+- androidx.arch.core:core-common:2.1.0
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/arch/core/core-common/2.1.0/core-common-2.1.0.jar
+  SHA-256: fe1237bf029d063e7f29fe39aeaf73ef74c8b0a3658486fc29d3c54326653889
+- androidx.arch.core:core-runtime:2.1.0
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/arch/core/core-runtime/2.1.0/core-runtime-2.1.0.aar
+  SHA-256: dd77615bd3dd275afb11b62df25bae46b10b4a117cd37943af45bdcbf8755852
+- androidx.collection:collection:1.2.0
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/collection/collection/1.2.0/collection-1.2.0.jar
+  SHA-256: 16d77e8c443fa55fe9a6074d00445d520ca5c9f913cefdbf4828356255214e42
+- androidx.concurrent:concurrent-futures:1.0.0
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/concurrent/concurrent-futures/1.0.0/concurrent-futures-1.0.0.jar
+  SHA-256: 5595a40e278a7b39fa78a09490e3d7f3faa95c7b01447148bd38b5ade0605c35
+- androidx.core:core:1.8.0
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/core/core/1.8.0/core-1.8.0.aar
+  SHA-256: 48c64a15ec3eb11bfb33339e5ceb70ec7f821bd2dfa2eb8675ebd5353317e792
+- androidx.exifinterface:exifinterface:1.3.6
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/exifinterface/exifinterface/1.3.6/exifinterface-1.3.6.aar
+  SHA-256: 1804105e9e05fdd8f760413bad5de498c381aa329f4f9d94c851bc891ac654c6
+- androidx.lifecycle:lifecycle-common:2.3.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/lifecycle/lifecycle-common/2.3.1/lifecycle-common-2.3.1.jar
+  SHA-256: 15848fb56db32f4c7cdc72b324003183d52a4884d6bf09be708ac7f587d139b5
+- androidx.lifecycle:lifecycle-runtime:2.3.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/lifecycle/lifecycle-runtime/2.3.1/lifecycle-runtime-2.3.1.aar
+  SHA-256: dd294f4a689c71ff877fd41f3b67a3a62f7760d44ce420e6130f1fc3569d8f00
+- androidx.media3:media3-common:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-common/1.5.1/media3-common-1.5.1.aar
+  SHA-256: ee69fc48b9ea9c5e1381cbf89bcab96e254fd7bd1f31891642bb4e1c1f6c6fd7
+- androidx.media3:media3-container:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.5.1/media3-container-1.5.1.aar
+  SHA-256: b163c43acbb47244b3ffedc5f216f349cfc8ca9585d3b73b7f32b7228fd63dff
+- androidx.media3:media3-database:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-database/1.5.1/media3-database-1.5.1.aar
+  SHA-256: 13bf4ccce6bc9e8ef8e04a62e90fa6c1589b89bee8633f0db9f61ae2c23f6ef6
+- androidx.media3:media3-datasource:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-datasource/1.5.1/media3-datasource-1.5.1.aar
+  SHA-256: b86cfb137a94bf471d6b2802415edd4fe66038dab6986682133786ca7dd43de2
+- androidx.media3:media3-decoder:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-decoder/1.5.1/media3-decoder-1.5.1.aar
+  SHA-256: 6cd78cad4c1ef8aa16876fcd923eefc3894b538960798698a891cc7f419b8b34
+- androidx.media3:media3-exoplayer:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-exoplayer/1.5.1/media3-exoplayer-1.5.1.aar
+  SHA-256: 11bb9687acd2c0bdd0a99a32006c8ac632ac138ffd996ae7293f375514721b51
+- androidx.media3:media3-exoplayer-dash:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-exoplayer-dash/1.5.1/media3-exoplayer-dash-1.5.1.aar
+  SHA-256: 4cf70e6f0bea18cf30baa055c6ed0af9193426a6d62421a093da2c30a8a48c9f
+- androidx.media3:media3-exoplayer-hls:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-exoplayer-hls/1.5.1/media3-exoplayer-hls-1.5.1.aar
+  SHA-256: 8c3ebcc8f7b285aade63cdd61721256db6f392e97d09c6c613196f8885c8bc0d
+- androidx.media3:media3-extractor:1.5.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/media3/media3-extractor/1.5.1/media3-extractor-1.5.1.aar
+  SHA-256: f2a146209e040409ed2cea3daa74932011c3b4ac451427f1738569821b21d084
+- androidx.versionedparcelable:versionedparcelable:1.1.1
+  Artifact: https://dl.google.com/dl/android/maven2/androidx/versionedparcelable/versionedparcelable/1.1.1/versionedparcelable-1.1.1.aar
+  SHA-256: 57e8d93260d18d5b9007c9eed3c64ad159de90c8609ebfc74a347cbd514535a4
+- com.google.guava:failureaccess:1.0.2
+  Artifact: https://repo.maven.apache.org/maven2/com/google/guava/failureaccess/1.0.2/failureaccess-1.0.2.jar
+  SHA-256: 8a8f81cf9b359e3f6dfa691a1e776985c061ef2f223c9b2c80753e1b458e8064
+- com.google.guava:guava:33.3.1-android
+  Artifact: https://repo.maven.apache.org/maven2/com/google/guava/guava/33.3.1-android/guava-33.3.1-android.jar
+  SHA-256: 2c3e41d1b380f2044d257947a3aa82dabf3ae4b978622745254aa18b6cf89ab0
+- com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava
+  Artifact: https://repo.maven.apache.org/maven2/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+  SHA-256: b372a037d4230aa57fbeffdef30fd6123f9c0c2db85d0aced00c91b974f33f99
+- org.jetbrains:annotations:13.0
+  Artifact: https://repo.maven.apache.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.jar
+  SHA-256: ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478
+- org.jetbrains.kotlin:kotlin-stdlib:1.8.0
+  Artifact: https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.8.0/kotlin-stdlib-1.8.0.jar
+  SHA-256: c77bef8774640b9fb9d6e217459ff220dae59878beb7d2e4b430506feffc654e
+- org.jetbrains.kotlin:kotlin-stdlib-common:1.8.0
+  Artifact: https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.8.0/kotlin-stdlib-common-1.8.0.jar
+  SHA-256: 78ef93b59e603cc0fe51def9bd4c037b07cbace3b3b7806d1a490a42bc1f4cb2
+
+Publisher license sources (retrieved 2026-10-26):
+https://raw.githubusercontent.com/androidx/media/1.5.1/LICENSE
+https://raw.githubusercontent.com/google/guava/v33.3.1/LICENSE
+https://raw.githubusercontent.com/JetBrains/kotlin/v1.8.0/license/LICENSE.txt
+https://raw.githubusercontent.com/JetBrains/kotlin/v1.8.0/license/NOTICE.txt
+
+KOTLIN NOTICE (verbatim from the pinned publisher release)
+   =========================================================================
+   ==  NOTICE file corresponding to the section 4 d of                    ==
+   ==  the Apache License, Version 2.0,                                   ==
+   ==  in this case for the Kotlin Compiler distribution.                 ==
+   =========================================================================
+
+   Kotlin Compiler
+   Copyright 2010-2020 JetBrains s.r.o and respective authors and developers
+
+
+APACHE LICENSE 2.0 (verbatim from the pinned publisher release)
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+
+Additional Media3 UI and RTSP runtime artifacts, Apache-2.0 (full license above):
+androidx.core:core-ktx:1.5.0 SHA256 5964cfe7a4882da2a00fb6ca3d3a072d04139208186f7bc4b3cb66022764fc42
+androidx.customview:customview:1.0.0 SHA256 20e5b8f6526a34595a604f56718da81167c0b40a7a94a57daa355663f2594df2
+androidx.customview:customview-poolingcontainer:1.0.0 SHA256 3584102fc49bf399c56e3b7be4bfe12000c46112320cd8cf85cc0a8f93f3e752
+androidx.media:media:1.7.0 SHA256 81a199ee87c6d3d59fb35f7dbec71b3f1d507128611099b6ac3a4b1c5a0bf1f9
+androidx.media3:media3-exoplayer-rtsp:1.5.1 SHA256 6fc1ce8d7acaf981cc0c09c4eb97e59f9ca772c28645f09d52bd540d1fe12009
+androidx.media3:media3-ui:1.5.1 SHA256 01caff80faaf5cbc4304d70f971a41004865228b0e31188a34b9bd219bb1cdd8
+androidx.recyclerview:recyclerview:1.3.0 SHA256 d65928a00f63589a49e21925412e0f48852f89254b07b03c030d560f91effc88

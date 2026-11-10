@@ -1,0 +1,11 @@
+Marco Movie Lite — Copyright (C) 2026 Pilipala
+Project: https://github.com/Pilipala9919/MarcoMovie
+License: GPL-3.0-only (see LICENSE).
+
+This tool contains no film resources, resource configurations, or user accounts.
+Users must independently obtain configurations and permission to access content.
+
+QR encoding: ZXing core 3.2.1, Copyright ZXing authors, Apache License 2.0.
+Source: https://github.com/zxing/zxing/tree/zxing-3.2.1
+See licenses/ZXing-Apache-2.0.txt. Used locally to generate pairing QR codes.
+This legacy QR dependency is isolated from the full edition and does not parse media.

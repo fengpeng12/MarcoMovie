@@ -1,0 +1,2 @@
+<resources><color name="background">#101013</color><style name="LiteTheme" parent="android:style/Theme.Holo.NoActionBar"><item name="android:windowFullscreen">true</item><item name="android:windowNoTitle">true</item><item name="android:windowBackground">@color/background</item></style></resources>
+

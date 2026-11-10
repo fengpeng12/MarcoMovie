@@ -1,0 +1,52 @@
+name: marco_movie
+description: Marco Movie cross-platform player for macOS, iOS, iPadOS, Windows, and Android.
+publish_to: "none"
+version: 0.5.8+58
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  file_picker: ^8.3.7
+  archive: ^4.0.7
+  http: ^1.5.0
+  html: ^0.15.6
+  crypto: ^3.0.6
+  qr: 3.0.2
+  url_launcher: 6.3.1
+  quickjs_engine:
+    path: packages/quickjs_engine
+  catpaw_runtime:
+    path: packages/catpaw_runtime
+  window_manager: 0.5.1
+  shared_preferences: ^2.3.2
+  package_info_plus: 9.0.1
+  path_provider: 2.1.5
+  # Keep the native iOS 14 plugin rather than the newer Objective-C FFI framework.
+  path_provider_foundation: 2.4.4
+  media_kit: ^1.1.11
+  media_kit_video: ^1.2.5
+  media_kit_libs_video: ^1.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  shared_preferences_platform_interface: ^2.4.2
+
+flutter:
+  uses-material-design: true
+  shaders:
+    - shaders/glasswork.frag
+  assets:
+    - assets/js-host/module-interop.js
+    - assets/js-host/catvod.mjs
+    - assets/js-host/crypto-js.js
+    - assets/js-host/crypto.LICENSE
+    - assets/catpaw/
+    - assets/python-host/
+    - assets/logo_mark.png
+    - shaders/GLASSWORK-LICENSE.txt

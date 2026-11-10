@@ -1,0 +1,62 @@
+{
+  "sources": {
+    "media": {
+      "url": "https://github.com/androidx/media.git",
+      "commit": "76088cd6af7f263aba238b7a48d64bd4f060cb8b",
+      "version": "1.5.1"
+    },
+    "ffmpeg": {
+      "url": "https://github.com/FFmpeg/FFmpeg.git",
+      "commit": "f1e3a2bf7a2f2cde936d1ed97f09a26853d20125",
+      "version": "6.1.6"
+    },
+    "libgav1": {
+      "url": "https://chromium.googlesource.com/codecs/libgav1",
+      "commit": "e386d8f1fb983200972d159b9be47fd5d0776708",
+      "version": "0.19.0"
+    },
+    "cpu_features": {
+      "url": "https://github.com/google/cpu_features.git",
+      "commit": "ba4bffa86cbb5456bdb34426ad22b9551278e2c0",
+      "version": "0.9.0"
+    },
+    "abseil": {
+      "url": "https://github.com/abseil/abseil-cpp.git",
+      "commit": "d7aaad83b488fd62bd51c81ecf16cd938532cc0a",
+      "version": "20240116.2"
+    },
+    "libvpx": {
+      "url": "https://github.com/webmproject/libvpx.git",
+      "commit": "d168454ecd099805c675d4a98c66f4891373302a",
+      "version": "1.15.2"
+    }
+  },
+  "patches": [
+    "patch_ffmpeg.py: TrueHD channel layout and flush"
+  ],
+  "ndk": "26.1.10909125",
+  "abi": "armeabi-v7a",
+  "api": 23,
+  "audio_decoders": [
+    "vorbis",
+    "opus",
+    "flac",
+    "alac",
+    "pcm_mulaw",
+    "pcm_alaw",
+    "mp3",
+    "amrnb",
+    "amrwb",
+    "aac",
+    "ac3",
+    "eac3",
+    "dca",
+    "mlp",
+    "truehd"
+  ],
+  "libraries": {
+    "libffmpegJNI.so": "46e04818bd9f3a205237db64fd984350cdaff0c5c98c78004abffa2f45095359",
+    "libgav1JNI.so": "aef236d674d98f34e69a494a6e7558250187762235db46008cec741f78ed84d3",
+    "libvpxV2JNI.so": "3498df92e825b69c276344bb4f75ca77d7601bb7851aef18df9ba223ce25e2dd"
+  }
+}

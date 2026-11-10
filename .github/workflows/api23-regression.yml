@@ -1,0 +1,72 @@
+name: Android 6 subtitle and source regression
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'shared/**'
+      - 'scripts/build_android.py'
+      - 'scripts/build_api23_probes.py'
+      - 'scripts/run_api23_probes.py'
+      - '.github/workflows/api23-regression.yml'
+  push:
+    branches: ['main', 'fix/plugin-ports-16kb-*']
+    paths:
+      - 'android/**'
+      - 'shared/**'
+      - 'scripts/build_android.py'
+      - 'scripts/build_api23_probes.py'
+      - 'scripts/run_api23_probes.py'
+      - '.github/workflows/api23-regression.yml'
+permissions:
+  contents: read
+jobs:
+  api23:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools ndk;28.2.13676358'
+      - name: Build production code and isolated API 23 fixtures
+        run: |
+          export MARCOMOVIE_BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          python scripts/build_android.py
+          python android/tests/run_api23_callback_checks.py
+          python scripts/build_api23_probes.py
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 23
+          target: android-tv
+          arch: x86
+          profile: tv_1080p
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -skin 1920x1080
+          disable-animations: true
+          script: python scripts/run_api23_probes.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-6-regression-evidence
+          path: |
+            android/build/api23-probes/scope.json
+            android/build/api23-probes/device.txt
+            android/build/api23-probes/display.txt
+            android/build/api23-probes/results.json
+            android/build/api23-probes/*.log
+            android/build/api23-probes/*-logcat.txt
+            android/build/api23-probes/screenshots/
+          retention-days: 14

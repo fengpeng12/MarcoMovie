@@ -1,0 +1,6 @@
+# Formatting-only commits. Use with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub applies this file automatically in its blame view.
+
+# Format first-party Java sources with google-java-format (no behavior change)
+eae41d571722986d79a6ed4b74fdba7fb35d4b02

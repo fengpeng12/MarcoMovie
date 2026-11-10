@@ -1,0 +1,65 @@
+name: Android phone and TV update isolation
+on:
+  workflow_dispatch:
+  push:
+    branches: ['fix/plugin-ports-16kb-20261107']
+    paths:
+      - '.github/workflows/android-update-isolation.yml'
+      - 'android/src/main/java/com/pilipala/marcomovie/Update*.java'
+      - 'android/tests/device/UpdateIsolationProbe.java'
+      - 'scripts/build_update_isolation_probe.py'
+      - 'scripts/run_update_isolation_probe.py'
+permissions:
+  contents: read
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [23, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools ndk;28.2.13676358'
+      - name: Build exact production code and isolated update fixtures
+        run: |
+          export MARCOMOVIE_BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          python scripts/build_android.py
+          python android/tests/run_checks.py
+          python android/tests/run_update_checks.py
+          python scripts/build_update_isolation_probe.py
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: python scripts/run_update_isolation_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: update-isolation-api${{ matrix.api }}
+          path: |
+            android/build/update-isolation/scope.json
+            android/build/update-isolation/results.json
+            android/build/update-isolation/*.log
+            android/build/update-isolation/device.txt
+          retention-days: 14

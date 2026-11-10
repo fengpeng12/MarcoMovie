@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "runtime": "drpy2-ca23ffdb-1",
+  "files": [
+    {
+      "name": "drpy-worker.cjs",
+      "bytes": 12644,
+      "sha256": "f6ba06435b8d01911f37cb2dd6c94871b762e3a44d77ac7d3283ec5f9612bb0e"
+    },
+    {
+      "name": "drpy-http.cjs",
+      "bytes": 6688,
+      "sha256": "1b48034af518617fcfbe4b4b3535d0f6b21a066fd797e4a8c18a2c8ef786405f"
+    },
+    {
+      "name": "drpy-schema.cjs",
+      "bytes": 3475,
+      "sha256": "6c79fa9c55d22f1f0296e24da71194707991e1d93e025ae62002cda3cbbae973"
+    },
+    {
+      "name": "drpy-core.js",
+      "bytes": 166370,
+      "sha256": "e93f2deeb177ab43cc1c10e7cb505cbefd55da63da7d798f95c74a0da0b82629"
+    },
+    {
+      "name": "drpy-dependencies.js",
+      "bytes": 1269961,
+      "sha256": "d72880e3506074dfce8b87804a3a15a3ef663a4e399bfb477ad51d1c1f238417"
+    },
+    {
+      "name": "drpy-LICENSE.txt",
+      "bytes": 7651,
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+    },
+    {
+      "name": "drpy-dependencies-LICENSE.txt",
+      "bytes": 33628,
+      "sha256": "b0387c2d584d7a4e0ac040b2f75d22c42971f632b24a9d83d714778e5142166e"
+    },
+    {
+      "name": "drpy-provenance.json",
+      "bytes": 17360,
+      "sha256": "a2f8a943eb5ac0fa06e3ef5f185a0631091c9166544ee3e3dbb9117f14e5c2ff"
+    },
+    {
+      "name": "drpy-guard-extractor.cjs",
+      "bytes": 21069,
+      "sha256": "e66202f8b7178084a6cfe472fb6feb83fff77963d2ad3434beee205fb4bd2187"
+    },
+    {
+      "name": "drpy-dm84-adapter.cjs",
+      "bytes": 6182,
+      "sha256": "33b4e611a2623d450c02d635c47a849d2ad7b4041176205bbda9b78ae62b275d"
+    },
+    {
+      "name": "drpy-bootstrap-worker.cjs",
+      "bytes": 2190,
+      "sha256": "d796449fdb01009c6a7f793cd8042a3bd2c77fcf9d75bd3eff59a41493b76764"
+    },
+    {
+      "name": "drpy-auete-adapter.cjs",
+      "bytes": 18276,
+      "sha256": "428e42842095fbd4e3d54196413a71573ebceb639111b60c3c363a928085c4b8"
+    },
+    {
+      "name": "drpy-bttwoo-adapter.cjs",
+      "bytes": 6558,
+      "sha256": "ce3c59231b1743ea3743747989907598e7ec9aa44548ae61cd24d69aba5c8009"
+    },
+    {
+      "name": "drpy-appgz-adapter.cjs",
+      "bytes": 13646,
+      "sha256": "c05b1a460e40819323b4ef1361a15321bd25cf89f62125177a797190c1a0ef9f"
+    },
+    {
+      "name": "drpy-rsa.cjs",
+      "bytes": 2363,
+      "sha256": "961cc447c8c6f817551dff5cc4728d92d171db4b169b95b76e62e41b73f4b692"
+    },
+    {
+      "name": "drpy-t4-extractor.cjs",
+      "bytes": 6042,
+      "sha256": "459b7bd611e29dfc9a3435ddfb7e5374589c714da52060dfe66891ec42e3a518"
+    },
+    {
+      "name": "drpy-t4-adapter.cjs",
+      "bytes": 10010,
+      "sha256": "c3a08f04bb52d0fb950dcec3141ffbc77d9c95ad446cfd86a45cc373cfef63a8"
+    },
+    {
+      "name": "drpy-fy-extractor.cjs",
+      "bytes": 3983,
+      "sha256": "a0972f1a5348aef925adf56fd54a6e796181f57cca5059fd98355d3b036c1b20"
+    },
+    {
+      "name": "drpy-fy-adapter.cjs",
+      "bytes": 20815,
+      "sha256": "a1a89614e67de3b0539b29c8517d11b0b422d0145ef746a3361fd70170a78de1"
+    }
+  ]
+}

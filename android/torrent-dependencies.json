@@ -1,0 +1,33 @@
+[
+  {
+    "name": "jlibtorrent",
+    "version": "2.0.12.9",
+    "license": "MIT wrapper; BSD-3-Clause libtorrent; bundled native dependency notices required",
+    "url": "https://dl.frostwire.com/maven/com/frostwire/jlibtorrent/2.0.12.9/jlibtorrent-2.0.12.9.jar",
+    "sha256": "c96316e640397249ecfbbe56c355afef472190b8d47d51a94a03e47eb60c219a",
+    "native_members": [],
+    "java_classes": true
+  },
+  {
+    "name": "jlibtorrent-android-arm",
+    "version": "2.0.12.9",
+    "license": "MIT wrapper; BSD-3-Clause libtorrent; bundled native dependency notices required",
+    "url": "https://dl.frostwire.com/maven/com/frostwire/jlibtorrent-android-arm/2.0.12.9/jlibtorrent-android-arm-2.0.12.9.jar",
+    "sha256": "b0e30228219255a21a7c358045424f2ae50a7624f3729918223e27bc5389679c",
+    "native_members": [
+      "lib/armeabi-v7a/libjlibtorrent-2.0.12.9.so"
+    ],
+    "java_classes": false
+  },
+  {
+    "name": "jlibtorrent-android-arm64",
+    "version": "2.0.12.9",
+    "license": "MIT wrapper; BSD-3-Clause libtorrent; bundled native dependency notices required",
+    "url": "https://dl.frostwire.com/maven/com/frostwire/jlibtorrent-android-arm64/2.0.12.9/jlibtorrent-android-arm64-2.0.12.9.jar",
+    "sha256": "8e48600b74a9f497ce2c7e1e6a025ce550f039658baef986ad634298758d5b9d",
+    "native_members": [
+      "lib/arm64-v8a/libjlibtorrent-2.0.12.9.so"
+    ],
+    "java_classes": false
+  }
+]

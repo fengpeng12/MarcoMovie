@@ -1,0 +1,50 @@
+name: Observational iOS simulator diagnostics
+on:
+  push:
+    branches: ['fix/plugin-ports-16kb-*']
+    paths:
+      - 'scripts/ios_simulator_diagnostics.py'
+      - '.github/workflows/ios-simulator-diagnostics.yml'
+  workflow_dispatch:
+    inputs:
+      probe_arch:
+        description: Hosted architecture to observe
+        type: choice
+        required: true
+        default: both
+        options: [both, arm64, x86_64]
+permissions:
+  contents: read
+jobs:
+  observe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(inputs.probe_arch == 'arm64' && '[{"runner":"macos-15","arch":"arm64"}]' ||
+          inputs.probe_arch == 'x86_64' && '[{"runner":"macos-15-intel","arch":"x86_64"}]' ||
+          '[{"runner":"macos-15","arch":"arm64"},{"runner":"macos-15-intel","arch":"x86_64"}]') }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Observe simulator metadata and service readiness
+        run: >-
+          python scripts/ios_simulator_diagnostics.py
+          --output-dir "$RUNNER_TEMP/ios-simulator-diagnostics"
+      - name: Retain observations only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-observations-${{ matrix.arch }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/ios-simulator-diagnostics/diagnostics.json
+            ${{ runner.temp }}/ios-simulator-diagnostics/logs/*.txt

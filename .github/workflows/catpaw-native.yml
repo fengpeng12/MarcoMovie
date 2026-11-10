@@ -1,0 +1,51 @@
+name: Validate CatPaw 16 KB runtime
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: Architecture to rebuild (all for a complete runtime set)
+        type: choice
+        default: all
+        options: [all, arm, arm64, x86_64]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(inputs.arch != 'all' && format('["{0}"]', inputs.arch) || '["arm","arm64","x86_64"]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: nodejs-mobile/nodejs-mobile
+          ref: d9552e0e01ed5bdbe12a31d1ce6c0877a4f39580
+          path: node-source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify guarded upstream compatibility patches
+        run: python scripts/test_catpaw_node_patches.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Install fixed Android NDK and host dependencies
+        run: |
+          sdkmanager 'ndk;28.2.13676358'
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-multilib g++-multilib
+      - name: Compile Node from source and verify every LOAD segment
+        run: python scripts/native/build_catpaw_node.py --source node-source --ndk "$ANDROID_HOME/ndk/28.2.13676358" --arch '${{ matrix.arch }}' --output node-output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catpaw-16kb-${{ matrix.arch }}
+          path: node-output/
+          if-no-files-found: error
+          retention-days: 14

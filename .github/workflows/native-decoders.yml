@@ -1,0 +1,28 @@
+name: Build native decoders
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fixed NDK
+        run: |
+          curl --fail --location --retry 3 https://dl.google.com/android/repository/android-ndk-r26b-linux.zip -o "$RUNNER_TEMP/ndk.zip"
+          echo "fdf33d9f6c1b3f16e5459d53a82c7d2201edbcc4  $RUNNER_TEMP/ndk.zip" | sha1sum --check
+          unzip -q "$RUNNER_TEMP/ndk.zip" -d "$RUNNER_TEMP"
+          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-r26b" >> "$GITHUB_ENV"
+      - name: Compile ARMv7 decoder libraries and package corresponding sources
+        run: python scripts/native/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marco-native-decoders
+          path: native-output/*
+          if-no-files-found: error
+          retention-days: 14

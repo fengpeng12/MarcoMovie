@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "inputs": {
+    "scripts/compile_python_modules.cjs": "26c03c205d02e1a99a25b9b5ab8962fd89c6564d3dbea77869007699e7851d0d",
+    "scripts/prepare_python_modules.py": "168d3e875cac5266d704f9ba2c6a273b2bc77ca70b5ae79c08f56e8fd1500dfa",
+    "android/src/main/assets/python-host/skulpt.min.js": "1a319d8eedf314dba5af2444313e3cf2ac072a335df0f5100277e8f49b64eae9",
+    "android/src/main/assets/python-host/skulpt-stdlib.js": "e3ecccbc17c6164d19ed3c5561aaaeb752c38c8efa2d88b62b5fb7a7e1b086a7",
+    "android/src/main/assets/python-host/html.js": "d5aa2695309a385d91aeb9f1ff45c6646dff96d042eb3f8c8c9029f7ea5a350e",
+    "android/src/main/assets/python-host/regex.js": "860539251f1c82ab5f0f89a7bbf038177681c27e4ab7c4c7389a29f7cf8873b4",
+    "android/src/main/assets/python-host/json.js": "3ada47a21e2e14178a6b26460d23a19309363fce5c0e476ba806877cf5607076",
+    "android/src/main/assets/python-host/io.js": "9a2441a7a12dceaaa51e2aa46fa54167359f3d982409f52bd87f48d124f94f14",
+    "android/src/main/assets/python-host/spider.js": "2669ff197d675fb64512f174e5c4e8b041be212998ccdfc10b33571d963f6f89"
+  },
+  "bytes": 917907,
+  "sha256": "b8ff474bdd06a32f69f0ea82665e3fba33069dd92d6fd6988911dc6aef1f7112"
+}

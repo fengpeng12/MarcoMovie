@@ -1,0 +1,124 @@
+name: Package verified Android Node candidate
+on:
+  push:
+    branches: ['fix/plugin-ports-16kb-20261107']
+    paths: ['.github/workflows/native-runtime-package.yml']
+  workflow_dispatch:
+    inputs:
+      runtime_source:
+        description: 'Validate local candidate override or actual published default download'
+        type: choice
+        options: [candidate, pinned]
+        default: candidate
+      arm_run_id:
+        description: 'Completed API23 ARMv7 runtime build run ID'
+        type: string
+        required: true
+        default: '42367030545'
+      arm64_run_id:
+        description: 'Completed ARM64 runtime build run ID'
+        type: string
+        required: true
+        default: '42361059731'
+      x86_64_run_id:
+        description: 'Completed x86_64 runtime build run ID'
+        type: string
+        required: true
+        default: '42361059731'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ARM_RUN_ID: ${{ inputs.arm_run_id || '42367030545' }}
+      ARM64_RUN_ID: ${{ inputs.arm64_run_id || '42361059731' }}
+      X86_64_RUN_ID: ${{ inputs.x86_64_run_id || '42361059731' }}
+      RUNTIME_SOURCE: ${{ inputs.runtime_source || 'candidate' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate artifact run IDs without shell interpolation
+        id: ids
+        run: |
+          python - <<'PY'
+          import os, re
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              for key, env in [('arm', 'ARM_RUN_ID'), ('arm64', 'ARM64_RUN_ID'), ('x86_64', 'X86_64_RUN_ID')]:
+                  value = os.environ[env]
+                  if not re.fullmatch(r'[0-9]{1,20}', value):
+                      raise SystemExit('Run IDs must contain decimal digits only')
+                  output.write(key + '=' + value + '\n')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: catpaw-16kb-arm
+          path: node-artifacts/arm
+          run-id: ${{ steps.ids.outputs.arm }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: catpaw-16kb-arm64
+          path: node-artifacts/arm64
+          run-id: ${{ steps.ids.outputs.arm64 }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: catpaw-16kb-x86_64
+          path: node-artifacts/x86_64
+          run-id: ${{ steps.ids.outputs.x86_64 }}
+          github-token: ${{ github.token }}
+      - name: Build immutable runtime archive and record its independent pin
+        run: |
+          python scripts/test_catpaw_runtime_bundle.py
+          python scripts/test_native_elf.py
+          python - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from native.catpaw_runtime_bundle import bundle, sha256
+          output = Path('runtime-candidate/marco-node-android.zip').resolve()
+          bundle({'armeabi-v7a': Path('node-artifacts/arm'), 'arm64-v8a': Path('node-artifacts/arm64'), 'x86_64': Path('node-artifacts/x86_64')},
+                 {'armeabi-v7a': os.environ['ARM_RUN_ID'], 'arm64-v8a': os.environ['ARM64_RUN_ID'], 'x86_64': os.environ['X86_64_RUN_ID']}, output)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              if os.environ['RUNTIME_SOURCE'] == 'candidate':
+                  env.write('MARCOMOVIE_ANDROID_RUNTIME_ARCHIVE=' + str(output) + '\n')
+                  env.write('MARCOMOVIE_ANDROID_RUNTIME_SHA256=' + sha256(output.read_bytes()) + '\n')
+              elif os.environ['RUNTIME_SOURCE'] != 'pinned':
+                  raise SystemExit('Unknown runtime source')
+          PY
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools ndk;28.2.13676358'
+      - name: Build full APKs using the selected runtime path and pinned NDK
+        run: |
+          export MARCOMOVIE_BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          python scripts/build_android.py
+          python android/tests/run_api23_callback_checks.py
+          python android/tests/run_checks.py
+          python android/tests/run_node_capability_checks.py
+          python android/tests/run_guard_checks.py
+      - name: Independently verify APK capabilities, source hashes and every native ELF
+        run: |
+          python scripts/verify_android_runtime_package.py --runtime-archive runtime-candidate/marco-node-android.zip --runtime-sha256-file runtime-candidate/marco-node-android.zip.sha256 --output runtime-candidate/apk-runtime-verification.json --require-whole-apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-node-runtime-candidate
+          path: |
+            runtime-candidate/
+            dist/*.apk
+            dist/*.sha256
+            android/build/build-validation.json
+            android/build/catpaw/runtime-build-evidence.json
+          if-no-files-found: error
+          retention-days: 14

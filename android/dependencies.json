@@ -1,0 +1,51 @@
+[
+  {
+    "name": "OkHttp",
+    "version": "3.14.9",
+    "license": "Apache-2.0",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/okhttp/3.14.9/okhttp-3.14.9.jar",
+    "sha256": "2570fab55515cbf881d7a4ceef49fc515490bc027057e666776a2832465aeca0"
+  },
+  {
+    "name": "Okio",
+    "version": "1.17.2",
+    "license": "Apache-2.0",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okio/okio/1.17.2/okio-1.17.2.jar",
+    "sha256": "f80ce42d2ffac47ad4c47e1d6f980d604d247ceb1a886705cf4581ab0c9fe2b8"
+  },
+  {
+    "name": "Gson",
+    "version": "2.10.1",
+    "license": "Apache-2.0",
+    "url": "https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar",
+    "sha256": "4241c14a7727c34feea6507ec801318a3d4a90f070e4525681079fb94ee4c593"
+  },
+  {
+    "name": "jsoup",
+    "version": "1.18.3",
+    "license": "MIT",
+    "url": "https://repo.maven.apache.org/maven2/org/jsoup/jsoup/1.18.3/jsoup-1.18.3.jar",
+    "sha256": "5be1ccd3228ae5fd6eed1bd6d827bac2bc65b91c20e9957d16ea65f739f15302"
+  },
+  {
+    "name": "wrapper-android",
+    "version": "3.2.3",
+    "license": "Apache-2.0",
+    "url": "https://repo.maven.apache.org/maven2/wang/harlon/quickjs/wrapper-android/3.2.3/wrapper-android-3.2.3.aar",
+    "sha256": "b1d0c550818f07e411b6e6f0eb21b28d83ed2e227d6129395be9e5a2167f4f0c"
+  },
+  {
+    "name": "wrapper-java",
+    "version": "3.2.3",
+    "license": "Apache-2.0",
+    "url": "https://repo.maven.apache.org/maven2/wang/harlon/quickjs/wrapper-java/3.2.3/wrapper-java-3.2.3.jar",
+    "sha256": "2f795c28787ecf77b7081fdc9764ce75dc7f9d39402c56b09161625d3ce97de3"
+  },
+  {
+    "name": "ZXing core",
+    "version": "3.5.3",
+    "license": "Apache-2.0",
+    "url": "https://repo.maven.apache.org/maven2/com/google/zxing/core/3.5.3/core-3.5.3.jar",
+    "sha256": "8d8064c1636fdaef7189dd9055c7d59950a8940a12f2293956446ec3c109fd82"
+  }
+]

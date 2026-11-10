@@ -1,0 +1,202 @@
+{
+  "text_read": [
+    "中文",
+    2,
+    "🎬\n",
+    "sec",
+    "ond\r\nend"
+  ],
+  "iteration": [
+    "中文🎬\n",
+    "second\r\n",
+    "end"
+  ],
+  "readlines_hint": [
+    [
+      "中文🎬\n",
+      "second\r\n"
+    ],
+    [
+      "end"
+    ]
+  ],
+  "text_write": [
+    1,
+    "中甲🎬\nsecond\r\nend",
+    2
+  ],
+  "text_empty_write": [
+    0,
+    15,
+    20
+  ],
+  "text_hole": [
+    1,
+    "中甲🎬\nsecond\r\nend\u0000\u0000\u0000\u0000\u0000Z",
+    21
+  ],
+  "text_truncate": [
+    2,
+    "中甲",
+    21,
+    30,
+    "中甲"
+  ],
+  "text_seek_end": [
+    2,
+    "",
+    2
+  ],
+  "text_capabilities": [
+    true,
+    true,
+    true,
+    false,
+    null,
+    null,
+    null,
+    null
+  ],
+  "text_initial_none": "",
+  "binary_initial_none": [],
+  "binary_read": [
+    [
+      0,
+      255
+    ],
+    2,
+    [
+      10
+    ],
+    [
+      128,
+      65
+    ],
+    [
+      10,
+      66
+    ]
+  ],
+  "binary_lines": [
+    [
+      0,
+      255,
+      10
+    ],
+    [
+      128,
+      65,
+      10
+    ],
+    [
+      66
+    ]
+  ],
+  "binary_overwrite": [
+    2,
+    [
+      0,
+      88,
+      89,
+      128,
+      65,
+      10,
+      66
+    ]
+  ],
+  "binary_empty_write": [
+    0,
+    [
+      0,
+      88,
+      89,
+      128,
+      65,
+      10,
+      66
+    ],
+    12
+  ],
+  "binary_hole": [
+    1,
+    [
+      0,
+      88,
+      89,
+      128,
+      65,
+      10,
+      66,
+      0,
+      0,
+      0,
+      0,
+      0,
+      90
+    ],
+    13
+  ],
+  "binary_seek": [
+    11,
+    0,
+    12,
+    [
+      90
+    ]
+  ],
+  "binary_truncate": [
+    1,
+    [
+      0
+    ],
+    13,
+    30,
+    [
+      0
+    ]
+  ],
+  "writelines_return": null,
+  "writelines_text": "一\n二\n",
+  "json_stream_text": "{\"id\": 9007199254740993123456789, \"title\": \"中文🎬\"}",
+  "json_stream_value": [
+    "9007199254740993123456789",
+    "中文🎬"
+  ],
+  "context_read": [
+    65,
+    66,
+    67
+  ],
+  "closed": true,
+  "errors": [
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "ValueError",
+    "TypeError",
+    "TypeError",
+    "TypeError",
+    "TypeError",
+    "OSError",
+    "ValueError",
+    "ValueError",
+    "TypeError",
+    "ValueError",
+    "UnsupportedOperation"
+  ],
+  "exception_bases": [
+    true,
+    true,
+    true,
+    true
+  ],
+  "closed_readonly": true,
+  "close_idempotent": true,
+  "context_exception": [
+    "preserve exception",
+    true
+  ]
+}

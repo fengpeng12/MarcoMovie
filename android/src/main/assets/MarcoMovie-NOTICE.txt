@@ -1,0 +1,17 @@
+Marco Movie
+Copyright (c) 2026 Pilipala
+Author and maintainer: Pilipala
+https://github.com/Pilipala9919
+https://github.com/Pilipala9919/MarcoMovie
+
+Original project source code, documentation and project brand assets are
+licensed under GNU GPL version 3 only (GPL-3.0-only), unless a file states
+otherwise. See LICENSE. This program is distributed without any warranty.
+Third-party components retain their own licenses and notices; see
+THIRD_PARTY_NOTICES.md and the license files under android/src/main/assets.
+No trademark endorsement rights are granted by this copyright license.
+
+Marco Movie is a playback tool. It does not include or provide audiovisual
+content, content subscriptions, configuration addresses, accounts, or paid
+service entitlements. Users must obtain their own authorized content and
+configuration independently.

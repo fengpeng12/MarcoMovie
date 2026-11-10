@@ -1,0 +1,208 @@
+{
+  "defaults": "{\"z\": \"\\u4e2d\\u6587\\ud83c\\udfac\\n\\t\\\\\\\"\", \"a\": [true, null, false, 1, -2, 1.5, -0.0]}",
+  "signed_payload": "{\"a\":[true,null,false,1,-2,1.5,-0.0],\"z\":\"中文🎬\\n\\t\\\\\\\"\"}",
+  "pretty": "{\n  \"a\": [\n    true,\n    null,\n    false,\n    1,\n    -2,\n    1.5,\n    -0.0\n  ],\n  \"z\": \"\\u4e2d\\u6587\\ud83c\\udfac\\n\\t\\\\\\\"\"\n}",
+  "tabs": "{\n\t\"a\": [\n\t\t1,\n\t\t{},\n\t\t[]\n\t]\n}",
+  "indent_zero": "[\n1,\n{\n\"x\": 2\n}\n]",
+  "slash_control": "\"/\\u0000\\u001f\\b\\f\\r\\u007f\\u0080\"",
+  "non_string_keys": "{\"true\": 1, \"null\": 2, \"3\": \"\\u4e09\", \"1.5\": false}",
+  "skip_keys": "{\"kept\": 2}",
+  "custom_default": "{\"x\": [1, 3]}",
+  "nan_output": "[NaN, Infinity, -Infinity]",
+  "float_output": "[1.0, 1e+20, 1e+21, 1e-05, 1e-06, 1.2345678901234567]",
+  "big_int": "9007199254740993123456789",
+  "big_int_output": "{\"id\": 9007199254740993123456789}",
+  "key_order": [
+    "9",
+    "1",
+    "a",
+    "__proto__"
+  ],
+  "duplicate_keys": {
+    "a": 2,
+    "b": 3
+  },
+  "pairs_hook": [
+    [
+      "a",
+      1
+    ],
+    [
+      "a",
+      2
+    ],
+    [
+      "nested",
+      [
+        [
+          "b",
+          3
+        ]
+      ]
+    ]
+  ],
+  "hook_priority": [
+    [
+      "a",
+      1
+    ]
+  ],
+  "object_hook": [
+    [
+      "nested",
+      [
+        [
+          "a",
+          1
+        ]
+      ]
+    ]
+  ],
+  "number_hooks": [
+    "i:123",
+    "f:1.25",
+    "f:1e3",
+    "c:NaN",
+    "c:Infinity",
+    "c:-Infinity"
+  ],
+  "unicode": "中🎬",
+  "control_allowed": "a\nb",
+  "bytes": {
+    "value": "中"
+  },
+  "dump_return": null,
+  "stream_text": "{\"z\":\"中文🎬\\n\\t\\\\\\\"\",\"a\":[true,null,false,1,-2,1.5,-0.0]}",
+  "load": {
+    "z": "中文🎬\n\t\\\"",
+    "a": [
+      true,
+      null,
+      false,
+      1,
+      -2,
+      1.5,
+      -0.0
+    ]
+  },
+  "read_count": 1,
+  "errors": [
+    [
+      "",
+      0,
+      1,
+      1,
+      true
+    ],
+    [
+      " [1,]",
+      3,
+      1,
+      4,
+      true
+    ],
+    [
+      "{\"a\" 1}",
+      5,
+      1,
+      6,
+      true
+    ],
+    [
+      "{\"a\":1",
+      6,
+      1,
+      7,
+      true
+    ],
+    [
+      "{x:1}",
+      1,
+      1,
+      2,
+      true
+    ],
+    [
+      "\"bad\\q\"",
+      4,
+      1,
+      5,
+      true
+    ],
+    [
+      "\"\\uxxxx\"",
+      2,
+      1,
+      3,
+      true
+    ],
+    [
+      "\"abc",
+      0,
+      1,
+      1,
+      true
+    ],
+    [
+      "true false",
+      5,
+      1,
+      6,
+      true
+    ],
+    [
+      "\"a\nb\"",
+      2,
+      1,
+      3,
+      true
+    ],
+    [
+      "{\"🎬\":\n ?}",
+      7,
+      2,
+      2,
+      true
+    ],
+    [
+      "﻿{}",
+      0,
+      1,
+      1,
+      true
+    ],
+    [
+      "01",
+      1,
+      1,
+      2,
+      true
+    ],
+    [
+      "1e+",
+      1,
+      1,
+      2,
+      true
+    ],
+    [
+      "-",
+      0,
+      1,
+      1,
+      true
+    ]
+  ],
+  "invalid": [
+    "ValueError",
+    "ValueError",
+    "TypeError",
+    "TypeError",
+    "TypeError",
+    "TypeError",
+    "TypeError",
+    "ZeroDivisionError",
+    "RuntimeError",
+    "RuntimeError"
+  ]
+}
