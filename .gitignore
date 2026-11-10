@@ -24,3 +24,5 @@ flutter/packages/catpaw_runtime/ios/Frameworks/
 native-work/
 native-output/
 decoder-fixtures/
+# 掌造本地仓库绑定记录（不属于项目源码，勿提交）
+repo.git
