@@ -31,3 +31,9 @@ repo.git
 # 掌造工作区元数据（.webnex-snapshots / repo.git）不属于项目源码
 # 掌造本地构建产物（ci_build 下载回本机的 APK 所在目录）
 build/
+# ci_build 在本仓库自动生成的 Gradle 桩文件（不属于上游源码，勿提交）
+/settings.gradle
+/build.gradle
+/gradle.properties
+/proguard-rules.pro
+/app/
