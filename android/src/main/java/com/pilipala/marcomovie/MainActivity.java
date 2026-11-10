@@ -1352,7 +1352,7 @@ public final class MainActivity extends Activity {
             contentHome(selected);
             return;
         }
-        renderPage("把今晚，留给好故事。", "YOUR OWN CINEMA", true);
+        renderPage("把今天，留给好故事。", "YOUR OWN CINEMA", true);
         paragraph("属于你的电视播放器。导入自己合法获取的配置，用遥控器浏览和播放。");
         LinearLayout hero = row();
         addButton(

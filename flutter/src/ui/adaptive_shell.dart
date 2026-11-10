@@ -1382,7 +1382,7 @@ class _AdaptiveShellState extends State<AdaptiveShell> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    '把今晚，留给好故事。',
+                    '把今天，留给好故事。',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppleColors.labelPrimary,
