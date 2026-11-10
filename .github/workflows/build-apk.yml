@@ -1,5 +1,7 @@
 name: Build MarcoMovie Phone APK
 
+# 只产出手机端（android-mobile）安装包，TV / lite 端产物一律删除
+
 on:
   workflow_dispatch:
   push:
