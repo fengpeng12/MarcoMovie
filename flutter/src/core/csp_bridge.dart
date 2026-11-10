@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'cms_parser.dart';
-import 'quark_account.dart';
 import 'trailer_source.dart';
 import 'models.dart';
+import 'wogg_source.dart';
 
 typedef CspHttpTextFetcher = Future<String> Function(
   String url, {
@@ -20,51 +18,29 @@ class CspBridge {
       'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
   static const String _desktopSafariUa =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.15';
-  static const String _quarkPcUa =
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch';
 
-  /// Multi-source MacCMS v10 JSON endpoints used as cross-platform portable
-  /// backends for TVBox `csp_*` VOD spiders and Douban / search resolution on iOS.
-  static const List<({String name, String api})> vodPool = [
-    (name: '爱坤', api: 'https://ikunzyapi.com/api.php/provide/vod/'),
-    (name: '360', api: 'https://360zy.com/api.php/provide/vod/'),
-    (name: '电影天堂', api: 'http://caiji.dyttzyapi.com/api.php/provide/vod/'),
-    (name: '极速', api: 'https://jszyapi.com/api.php/provide/vod/'),
-    (name: '豪华', api: 'https://hhzyapi.com/api.php/provide/vod/'),
-    (name: '最大', api: 'https://zuidazy.me/api.php/provide/vod/'),
-    (name: '魔都动漫', api: 'https://caiji.moduapi.cc/api.php/provide/vod/'),
-    (name: '速播', api: 'https://subocaiji.com/api.php/provide/vod/'),
-    (name: '新浪', api: 'https://api.xinlangapi.com/xinlangapi.php/provide/vod/'),
-    (name: '如意', api: 'https://cj.rycjapi.com/api.php/provide/vod/'),
-    (name: '非凡', api: 'http://cj.ffzyapi.com/api.php/provide/vod/'),
-    (name: '量子', api: 'https://cj.lziapi.com/api.php/provide/vod/'),
-    (name: '暴风', api: 'https://bfzyapi.com/api.php/provide/vod/'),
-    (name: '天涯', api: 'https://tyyszy.com/api.php/provide/vod/'),
-    (name: '索尼', api: 'https://suoniapi.com/api.php/provide/vod/'),
-    (name: '红牛', api: 'https://www.hongniuzy2.com/api.php/provide/vod/'),
-  ];
-
-  static const int _primaryVodPoolCount = 10;
-
-  static bool isDeadOrStubStreamUrl(String rawUrl) {
-    final lower = rawUrl.trim().toLowerCase();
-    return lower.contains('feifei-play.com') ||
-        lower.contains('ffzy-plays.com') ||
-        lower.contains('ffzy-online') ||
-        lower.contains('lzcdn') ||
-        lower.contains('tyyszywvod.com') ||
-        lower.contains('bvvvvvvvvv1f.com') ||
-        lower.contains('bfvvs.com');
+  static bool isBannerNoticeSite(CmsSite site) {
+    final n = site.name.toLowerCase();
+    return n.contains('免费分享') ||
+        n.contains('更新日期') ||
+        n.contains('防失联') ||
+        n.contains('公众号') ||
+        n.contains('发布页') ||
+        n.contains('网址发布') ||
+        n.contains('谨防') ||
+        n.contains('禁商用') ||
+        n.contains('仅供学习') ||
+        (n.contains('请先点击') && n.contains('配置'));
   }
-
-  static final RegExp _supportedVodCspPattern = RegExp(
-    r'^csp_(?!(?:local|unknown$|unknownguard$|test|guard$|live$|sixv|push|mydrive|mypan|panconfig|config$|configcenter$|fakeai115))[a-z0-9_]+$',
-    caseSensitive: false,
-  );
 
   static bool canHandleSite(CmsSite site) {
     final lowerApi = site.api.trim().toLowerCase();
-    if (lowerApi.startsWith('csp_')) return true;
+    if (lowerApi.startsWith('csp_')) {
+      return !RegExp(
+        r'^csp_(?:unknown|unknownguard|testpending.*|local.*)$',
+        caseSensitive: false,
+      ).hasMatch(lowerApi);
+    }
     final cleanApi = lowerApi.split('?').first;
     if (cleanApi.endsWith('.js') || cleanApi.endsWith('.mjs') || cleanApi.endsWith('.py') || cleanApi.endsWith('.jar')) {
       return true;
@@ -85,29 +61,15 @@ class CspBridge {
     'csp_fy': 'fy-v1',
   }[site.api.toLowerCase()];
 
-  static bool hasAdapter(CmsSite site) => (guardAdapterFor(site) != null && site.pluginReference.trim().isNotEmpty) || site.isDrpySource || site.isRemoteScriptSource || site.isJavaScriptSource || site.isPythonSource || TrailerSource.matches(site) || hasBuiltinAdapter(site);
+  static bool hasAdapter(CmsSite site) => WoggSource.supports(site) || (guardAdapterFor(site) != null && site.pluginReference.trim().isNotEmpty) || site.isDrpySource || site.isRemoteScriptSource || site.isJavaScriptSource || site.isPythonSource || TrailerSource.matches(site) || hasBuiltinAdapter(site);
 
   static bool hasBuiltinAdapter(CmsSite site) =>
       !site.api.startsWith('csp_Local') && (isDoubanSite(site) || isMyDriveSite(site) || isBiliSite(site) ||
       isTuxiaobeiSite(site) || isFirstAidSite(site) || isHuyaSite(site) ||
       isDouyuSite(site) || backendsForSite(site).isNotEmpty);
 
-  static bool isBannerNoticeSite(CmsSite site) {
-    final n = site.name.toLowerCase();
-    return n.contains('免费分享') ||
-        n.contains('更新日期') ||
-        n.contains('防失联') ||
-        n.contains('公众号') ||
-        n.contains('发布页') ||
-        n.contains('网址发布') ||
-        n.contains('谨防') ||
-        n.contains('禁商用') ||
-        n.contains('仅供学习') ||
-        n.contains('请勿付费') ||
-        n.contains('点击更新');
-  }
-
   static bool isDoubanSite(CmsSite site) {
+    if (isBannerNoticeSite(site)) return true;
     final lowerApi = site.api.toLowerCase();
     final lowerName = site.name.toLowerCase();
     return lowerApi.contains('doudou') ||
@@ -117,46 +79,31 @@ class CspBridge {
   }
 
   static bool isMyDriveSite(CmsSite site) {
+    if (isBannerNoticeSite(site)) return false;
     final lowerApi = site.api.toLowerCase();
     final lowerName = site.name.toLowerCase();
     final lowerKey = site.key.toLowerCase();
-    final hasHttpExt = site.ext.toLowerCase().contains('http');
     return lowerApi.contains('mydrive') ||
-        lowerApi.contains('mypan') ||
-        lowerApi.contains('panconfig') ||
         lowerApi.contains('panwebshare') ||
         lowerApi == 'csp_config' ||
         lowerApi == 'csp_configcenter' ||
         lowerApi.startsWith('csp_push') ||
-        lowerApi.startsWith('csp_fakeai115') ||
-        (!hasHttpExt &&
-            (lowerApi.startsWith('csp_alist') ||
-                lowerApi.startsWith('csp_webdav') ||
-                lowerApi.startsWith('csp_emby') ||
-                lowerApi.startsWith('csp_diyvod') ||
-                lowerApi.startsWith('csp_xpath'))) ||
         lowerKey.contains('mydrive') ||
-        lowerKey.contains('mypan') ||
-        lowerKey.contains('wexconfig') ||
         lowerKey == 'config' ||
         lowerKey == 'push_agent' ||
         lowerName.contains('我的云盘') ||
         lowerName.contains('我的网盘') ||
-        lowerName.contains('我的┃网盘') ||
         lowerName.contains('云盘配置') ||
         lowerName.contains('网盘配置') ||
-        lowerName.contains('配置中心') ||
-        lowerName.contains('配置┃中心') ||
-        lowerName.contains('请勿信视频中任何广告') ||
-        (lowerName.contains('请先点击') && lowerName.contains('配置'));
+        lowerName.contains('配置中心');
   }
 
   static bool isNetdiskSite(CmsSite site) {
+    if (isMyDriveSite(site)) return true;
     final lowerApi = site.api.toLowerCase();
-    final lowerKey = site.key.toLowerCase();
     final lowerName = site.name.toLowerCase();
-    return isMyDriveSite(site) ||
-        lowerApi.contains('wogg') ||
+    final lowerKey = site.key.toLowerCase();
+    return lowerApi.contains('wogg') ||
         lowerApi.contains('seedhub') ||
         lowerApi.contains('pansou') ||
         lowerApi.contains('s_zps') ||
@@ -171,20 +118,14 @@ class CspBridge {
         lowerApi.contains('baidu') ||
         lowerApi.contains('alipan') ||
         lowerApi.contains('aliyundrive') ||
-        lowerApi.startsWith('csp_ainew') ||
-        lowerApi.startsWith('csp_aiqw') ||
-        lowerKey.contains('wogg') ||
-        lowerKey.contains('seedhub') ||
-        lowerKey.contains('pansou') ||
-        lowerKey.contains('yiso') ||
-        lowerKey.contains('panta') ||
-        lowerKey.contains('kkss') ||
-        lowerKey.contains('ucss') ||
-        lowerKey.contains('uuss') ||
-        lowerKey.contains('quark') ||
-        lowerKey.contains('baidu') ||
-        lowerKey.contains('alipan') ||
         lowerName.contains('玩偶') ||
+        lowerName.contains('木偶') ||
+        lowerName.contains('多多') ||
+        lowerName.contains('虎斑') ||
+        lowerName.contains('盘库') ||
+        lowerName.contains('蜡笔') ||
+        lowerName.contains('至臻') ||
+        lowerName.contains('闪电') ||
         lowerName.contains('聚剧') ||
         lowerName.contains('四盘') ||
         lowerName.contains('盘搜') ||
@@ -196,23 +137,102 @@ class CspBridge {
         lowerName.contains('嘟嘟') ||
         lowerName.contains('阿狸') ||
         lowerName.contains('抠抠') ||
+        lowerName.contains('土豆') ||
+        lowerName.contains('米粒') ||
+        lowerName.contains('下饭') ||
+        lowerName.contains('小米') ||
+        lowerName.contains('二小') ||
+        lowerName.contains('欧哥') ||
+        lowerName.contains('奥秘') ||
+        lowerName.contains('团长') ||
+        lowerName.contains('雷鲸') ||
+        lowerName.contains('花卷') ||
+        lowerName.contains('观影') ||
+        lowerName.contains('七味') ||
+        lowerName.contains('快影') ||
+        lowerName.contains('4k') ||
         lowerName.contains('云盘') ||
-        lowerName.contains('4k');
+        lowerKey.contains('wogg') ||
+        lowerKey.contains('seedhub') ||
+        lowerKey.contains('zpan') ||
+        lowerKey.contains('yiso') ||
+        lowerKey.contains('ypanso') ||
+        lowerKey.contains('bpanso');
+  }
+
+  /// Maps a playback line name (e.g. `夸父智1`, `夸克`, `优汐智1`, `嘟嘟无限2`, `百度`, `阿狸原画`)
+  /// to its corresponding Netdisk drive key (`quark`, `uc`, `baidu`, `ali`), or `null` if it is a normal VOD line.
+  static String? netdiskDriveKeyForLineName(String lineName) {
+    final lower = lineName.trim().toLowerCase();
+    if (lower.isEmpty) return null;
+    if (lower.contains('夸父') || lower.contains('夸克') || lower.contains('quark')) {
+      return 'quark';
+    }
+    if (lower.contains('优汐') || lower == 'uc' || lower.startsWith('uc') || lower.contains('uc网盘') || lower.contains('uc云盘')) {
+      return 'uc';
+    }
+    if (lower.contains('嘟嘟') || lower.contains('百度') || lower.contains('baidu')) {
+      return 'baidu';
+    }
+    if (lower.contains('阿狸') || lower.contains('阿里') || lower.contains('alipan') || lower.contains('aliyun')) {
+      return 'ali';
+    }
+    return null;
+  }
+
+  /// Extracts a 1-based episode number from Netdisk / VOD episode labels such as
+  /// `JJC.S01E02 [1.30GB]`, `E01 [5.38GB]`, `[4K HDR] 第03集`, or `第12集`.
+  static int extractEpisodeNumber(String episodeName, int fallbackIndex) {
+    final stripped = episodeName
+        .replaceAll(RegExp(r'\[[^\]]*\]'), ' ')
+        .replaceAll(RegExp(r'\b(?:4[kK]|1080[pP]|2160[pP]|720[pP]|HDR\d*|x26[45]|H\.?26[45]|HEVC|AAC|DDP\d*(?:\.\d+)?)\b'), ' ')
+        .trim();
+    final seMatch = RegExp(r'[Ss]\d{1,2}[Ee](\d{1,4})').firstMatch(stripped);
+    if (seMatch != null) {
+      final n = int.tryParse(seMatch.group(1) ?? '');
+      if (n != null && n > 0) return n;
+    }
+    final cnMatch = RegExp(r'第\s*(\d{1,4})\s*[集话期章节回]').firstMatch(stripped);
+    if (cnMatch != null) {
+      final n = int.tryParse(cnMatch.group(1) ?? '');
+      if (n != null && n > 0) return n;
+    }
+    final epMatch = RegExp(r'(?:^|[^a-zA-Z0-9])[Ee][Pp]?(\d{1,4})(?!\d)').firstMatch(stripped);
+    if (epMatch != null) {
+      final n = int.tryParse(epMatch.group(1) ?? '');
+      if (n != null && n > 0) return n;
+    }
+    final numOnly = RegExp(r'^\s*#?(\d{1,4})(?:\s|$)').firstMatch(stripped);
+    if (numOnly != null) {
+      final n = int.tryParse(numOnly.group(1) ?? '');
+      if (n != null && n > 0) return n;
+    }
+    return fallbackIndex + 1;
+  }
+
+  /// Finds the best matching episode index in [targetLine] for [sourceEpisodeName].
+  static int matchEpisodeIndexInLine(
+    CmsLine targetLine,
+    String sourceEpisodeName,
+    int fallbackIndex,
+  ) {
+    if (targetLine.episodes.isEmpty) return 0;
+    final trimmed = sourceEpisodeName.trim();
+    final exactIdx = targetLine.episodes.indexWhere((e) => e.name.trim() == trimmed);
+    if (exactIdx >= 0) return exactIdx;
+    final targetNum = extractEpisodeNumber(trimmed, fallbackIndex);
+    for (int i = 0; i < targetLine.episodes.length; i++) {
+      if (extractEpisodeNumber(targetLine.episodes[i].name, i) == targetNum) {
+        return i;
+      }
+    }
+    return (targetNum - 1).clamp(0, targetLine.episodes.length - 1);
   }
 
   static bool isBiliSite(CmsSite site) {
     final lowerApi = site.api.toLowerCase();
     final lowerKey = site.key.toLowerCase();
-    return lowerApi.contains('bili') ||
-        lowerKey.contains('bili') ||
-        lowerApi.startsWith('csp_music') ||
-        lowerApi.startsWith('csp_tingshu') ||
-        lowerApi.startsWith('csp_yueting') ||
-        lowerApi.startsWith('csp_book') ||
-        lowerApi.startsWith('csp_kanqiu') ||
-        lowerApi.startsWith('csp_doubao') ||
-        lowerApi.startsWith('csp_livegz') ||
-        lowerApi.startsWith('csp_sport');
+    return lowerApi.contains('bili') || lowerKey.contains('bili');
   }
 
   static bool isTuxiaobeiSite(CmsSite site) {
@@ -220,10 +240,9 @@ class CspBridge {
     final lowerKey = site.key.toLowerCase();
     final lowerName = site.name.toLowerCase();
     final lowerExt = site.ext.toLowerCase();
-    return lowerApi.startsWith('csp_children') ||
+    return lowerApi.contains('tuxiaobei') ||
         lowerKey.contains('兔小贝') ||
-        lowerName.contains('儿童') ||
-        lowerName.contains('儿歌') ||
+        lowerName.contains('兔小贝') ||
         lowerExt.contains('tuxiaobei') ||
         lowerExt.contains('兔小贝') ||
         lowerExt.contains('%e5%85%94%e5%b0%8f%e8%b4%9d');
@@ -240,9 +259,7 @@ class CspBridge {
     final lowerKey = site.key.toLowerCase();
     final lowerName = site.name.toLowerCase();
     final lowerExt = site.ext.toLowerCase();
-    return lowerApi.startsWith('csp_alllive') ||
-        lowerKey.contains('alllive') ||
-        lowerName.contains('一直播') ||
+    return lowerApi.contains('huya') ||
         lowerKey.contains('虎牙') ||
         lowerKey.contains('huya') ||
         lowerName.contains('虎牙') ||
@@ -261,73 +278,12 @@ class CspBridge {
         lowerExt.contains('斗鱼');
   }
 
-  static List<({String name, String api})> _orderedVodPoolForSite(CmsSite site) {
-    if (vodPool.isEmpty) return const [];
-    final lowerApi = site.api.toLowerCase();
-    final lowerKey = site.key.toLowerCase();
-    final name = site.name;
-    final activeCount = vodPool.length < _primaryVodPoolCount
-        ? vodPool.length
-        : _primaryVodPoolCount;
-    int offset;
-    if (name.contains('动漫') || lowerKey.contains('gugu') || lowerApi.contains('dm84') || lowerApi.contains('anime')) {
-      offset = 6; // 魔都动漫
-    } else if (lowerApi.contains('wogg') || name.contains('玩偶')) {
-      offset = 0; // 爱坤
-    } else if (lowerApi.contains('seedhub') || name.contains('聚剧') || name.contains('四盘')) {
-      offset = 1; // 360
-    } else if (lowerApi.contains('newcz') || name.contains('厂长')) {
-      offset = 2; // 电影天堂
-    } else if (lowerApi.contains('hmys') || name.contains('海绵')) {
-      offset = 9; // 如意
-    } else if (lowerApi.contains('libvio') || name.contains('立播')) {
-      offset = 4; // 豪华
-    } else if (lowerApi.contains('appgz') || name.contains('瓜子')) {
-      offset = 0; // 爱坤
-    } else if (lowerApi.contains('nmys') || name.contains('糯米')) {
-      offset = 7; // 速播
-    } else if (lowerApi.contains('jpys') || name.contains('文采') || name.contains('文才')) {
-      offset = 3; // 极速
-    } else if (lowerApi.contains('apptt') || name.contains('热播')) {
-      offset = 5; // 最大
-    } else if (lowerApi.contains('app99') || name.contains('茉莉')) {
-      offset = 1; // 360
-    } else if (lowerApi.contains('appsx') || name.contains('剧圈')) {
-      offset = 4; // 豪华
-    } else if (lowerApi.contains('jpj') || name.contains('荐片') || name.contains('贱片')) {
-      offset = 3; // 极速
-    } else if (lowerApi.contains('aidj') || lowerApi.contains('manju') || lowerApi.contains('duanju') || name.contains('短漫') || name.contains('漫短') || name.contains('漫剧') || name.contains('短剧')) {
-      offset = 8; // 新浪
-    } else if (lowerApi.contains('bttwoo') || name.contains('比特') || name.contains('光影')) {
-      offset = 2; // 电影天堂
-    } else if (lowerApi.contains('t4') || name.contains('天微')) {
-      offset = 8; // 新浪
-    } else if (lowerApi.contains('fy') || name.contains('风云')) {
-      offset = 1; // 360
-    } else if (lowerApi.contains('auete') || name.contains('奥特')) {
-      offset = 5; // 最大
-    } else {
-      var hash = 0;
-      for (final code in '${site.key}:${site.api}'.codeUnits) {
-        hash = (hash * 31 + code) & 0x7fffffff;
-      }
-      offset = hash % activeCount;
-    }
-    final safeOffset = offset % activeCount;
-    final primary = vodPool.sublist(0, activeCount);
-    final secondary = vodPool.sublist(activeCount);
-    return [
-      ...primary.sublist(safeOffset),
-      ...primary.sublist(0, safeOffset),
-      ...secondary,
-    ];
-  }
-
-  /// Extracts user-configured HTTP/HTTPS endpoints from `site.api` or `site.ext`,
-  /// and appends cross-platform MacCMS VOD pool backends for known TVBox `csp_*` VOD spiders.
+  /// Only endpoints explicitly supplied by this source. A plugin name is
+  /// never permission to substitute another provider or reuse its video IDs.
   static List<({String name, String api})> backendsForSite(CmsSite site) {
-    // Non-MacCMS HTML scrapers / netdisk search / Guard adapters are handled by their own adapters.
+    // Non-MacCMS HTML scrapers / Guard adapters are handled by their own adapters.
     if (guardAdapterFor(site) != null ||
+        isNetdiskSite(site) ||
         isBiliSite(site) ||
         isDoubanSite(site) ||
         isMyDriveSite(site) ||
@@ -338,12 +294,13 @@ class CspBridge {
         TrailerSource.matches(site)) {
       return [];
     }
+    if (site.key == 'html' && site.name == 'HTML') return [];
     final trimmedApi = site.api.trim();
-    final isCspSpider = trimmedApi.toLowerCase().startsWith('csp_');
-    final isHtmlSiteExt = RegExp(
-      r'^csp_(?:libvio|newcz|sixv|s_zps|wogg|seedhub|ypanso|bpanso|kkss|uuss)(?:guard)?$',
-      caseSensitive: false,
-    ).hasMatch(trimmedApi);
+    final isHtmlSiteExt = isNetdiskSite(site) ||
+        RegExp(
+          r'^csp_(?:libvio|newcz|sixv.*|s_zps.*|wogg.*|seedhub.*|ypanso.*|bpanso.*|kkss.*|uuss.*|push.*)$',
+          caseSensitive: false,
+        ).hasMatch(trimmedApi);
     final endpoints = <({String name, String api})>[];
     final seen = <String>{};
     void addCandidate(String raw) {
@@ -354,13 +311,6 @@ class CspBridge {
           lower.endsWith('.js') ||
           lower.endsWith('.py') ||
           lower.endsWith('.txt')) {
-        return;
-      }
-      if (isCspSpider &&
-          !lower.contains('api.php') &&
-          !lower.contains('provide/vod') &&
-          !lower.contains('/api') &&
-          !lower.contains('cms.')) {
         return;
       }
       if (seen.add(t)) {
@@ -403,12 +353,6 @@ class CspBridge {
         } catch (_) {}
       }
     }
-    if (vodPool.isNotEmpty &&
-        (endpoints.isNotEmpty || _supportedVodCspPattern.hasMatch(trimmedApi))) {
-      for (final b in _orderedVodPoolForSite(site)) {
-        if (seen.add(b.api)) endpoints.add(b);
-      }
-    }
     return endpoints;
   }
 
@@ -438,7 +382,7 @@ class CspBridge {
     if (isBiliSite(site)) {
       return _fetchBiliHome(site, fetchText);
     }
-    return _fetchVodPoolHome(site, fetchText);
+    return _fetchConfiguredHome(site, fetchText);
   }
 
   static Future<CmsListing> fetchCategory(
@@ -470,7 +414,7 @@ class CspBridge {
     if (isBiliSite(site)) {
       return _fetchBiliSearch(categoryId, page, fetchText);
     }
-    return _fetchVodPoolCategory(site, categoryId, page, fetchText, childIds);
+    return _fetchConfiguredCategory(site, categoryId, page, fetchText, childIds);
   }
 
   /// Interleaves the same page of several leaf categories into one listing so a
@@ -507,17 +451,10 @@ class CspBridge {
   ) async {
     if (TrailerSource.matches(site)) return TrailerSource.list(page, keyword, fetchText);
     if (isDoubanSite(site) || isMyDriveSite(site)) {
-      return _fetchVodPoolSearch(site, keyword, page, fetchText);
+      return const CmsListing();
     }
     if (isBiliSite(site)) {
       return _fetchBiliSearch(keyword, page, fetchText);
-    }
-    if (isTuxiaobeiSite(site)) {
-      final (_, homeListing) = await _fetchTuxiaobeiHome(fetchText);
-      final filtered = homeListing.videos
-          .where((v) => v.title.toLowerCase().contains(keyword.toLowerCase()))
-          .toList(growable: false);
-      return CmsListing(page: 1, pageCount: 1, videos: filtered);
     }
     if (isFirstAidSite(site)) {
       final (_, homeListing) = await _fetchFirstAidHome(fetchText);
@@ -526,7 +463,7 @@ class CspBridge {
           .toList(growable: false);
       return CmsListing(page: 1, pageCount: 1, videos: filtered);
     }
-    return _fetchVodPoolSearch(site, keyword, page, fetchText);
+    return _fetchConfiguredSearch(site, keyword, page, fetchText);
   }
 
   static Future<CmsVideo> fetchDetail(
@@ -599,143 +536,47 @@ class CspBridge {
       if (detailed.lines.isNotEmpty) return detailed;
     }
 
-    final wantNetdiskLines =
-        isDoubanSite(site) || isNetdiskSite(site) || fallback.id.startsWith('msearch:');
-
-    // Standard VOD detail or cross-source resolution (for Douban / msearch / multi-line)
-    if (!isDoubanSite(site) && !fallback.id.startsWith('msearch:')) {
-      final fallbackDirectLines = [
-        for (final l in fallback.lines)
-          if (l.episodes.any((e) => e.isDirectPlayable))
-            CmsLine(
-              name: l.name,
-              episodes: l.episodes.where((e) => e.isDirectPlayable).toList(growable: false),
-            ),
-      ];
-      CmsVideo? matchedDetail;
-      if (fallbackDirectLines.isNotEmpty) {
-        matchedDetail = CmsVideo(
-          id: fallback.id,
-          title: fallback.title,
-          poster: fallback.poster,
-          remarks: fallback.remarks,
-          year: fallback.year,
-          area: fallback.area,
-          actor: fallback.actor,
-          description: fallback.description,
-          tag: fallback.tag,
-          lines: fallbackDirectLines,
-        );
-      } else {
-        final directBackends = backendsForSite(site);
-        final all = directBackends.isNotEmpty
-            ? directBackends
-            : (guardAdapterFor(site) != null ? _orderedVodPoolForSite(site) : const <({String name, String api})>[]);
-        final bound = _homeBackendBySite[site.key];
-        final backends = [
-          if (bound != null) ...all.where((b) => b.api == bound),
-          ...all.where((b) => b.api != bound),
-        ];
-        final normFallbackTitle = _normalizeTitleForMatch(fallback.title);
-        for (final backend in backends.take(2)) {
-          try {
-            final isAppV2 = _isAppV2Endpoint(backend.api);
-            final baseApi = backend.api.endsWith('/') ? backend.api : '${backend.api}/';
-            final uri = isAppV2
-                ? Uri.parse('${baseApi}video_detail').replace(queryParameters: {'id': fallback.id})
-                : Uri.parse(backend.api).replace(queryParameters: {'ac': 'detail', 'ids': fallback.id});
-            final raw = await fetchText(
-              uri.toString(),
-              headers: site.headers,
-              requestTimeout: const Duration(seconds: 6),
-            );
-            final listing = CmsParser.parseListing(raw);
-            if (listing.videos.isNotEmpty && listing.videos.first.lines.isNotEmpty) {
-              final candidate = listing.videos.first;
-              if (normFallbackTitle.isNotEmpty &&
-                  candidate.title.trim().isNotEmpty &&
-                  _normalizeTitleForMatch(candidate.title) != normFallbackTitle) {
-                continue;
-              }
-              final directOnly = [
-                for (final l in candidate.lines)
-                  if (l.episodes.any((e) => e.isDirectPlayable))
-                    CmsLine(
-                      name: l.name,
-                      episodes: l.episodes.where((e) => e.isDirectPlayable).toList(growable: false),
-                    ),
-              ];
-              matchedDetail = CmsVideo(
-                id: candidate.id.isEmpty ? fallback.id : candidate.id,
-                title: candidate.title.isEmpty ? fallback.title : candidate.title,
-                poster: CmsParser.isBrokenPosterUrl(candidate.poster) ? fallback.poster : candidate.poster,
-                remarks: candidate.remarks.isEmpty ? fallback.remarks : candidate.remarks,
-                year: candidate.year.isEmpty ? fallback.year : candidate.year,
-                area: candidate.area.isEmpty ? fallback.area : candidate.area,
-                actor: candidate.actor.isEmpty ? fallback.actor : candidate.actor,
-                description: candidate.description.isEmpty ? fallback.description : candidate.description,
-                tag: candidate.tag.isEmpty ? fallback.tag : candidate.tag,
-                lines: directOnly.isNotEmpty ? directOnly : candidate.lines,
-              );
-              break;
-            }
-          } catch (_) {}
-        }
-      }
-      if (matchedDetail != null) {
-        final v = matchedDetail;
-        final targetTitle = v.title.isEmpty ? fallback.title : v.title;
-        final hasQuarkLogin = await _hasLoggedInQuarkCookie();
-        if ((wantNetdiskLines || hasQuarkLogin) && targetTitle.trim().isNotEmpty) {
-          final cross = await resolveCrossSourceVideo(
-            v,
-            targetTitle,
-            fetchText,
-            siteHint: site.name.isEmpty ? '夸父4K' : site.name,
-          );
-          if (cross.lines.isNotEmpty) return cross;
-        }
-        final extraLines = await resolveCrossSourceLines(
-          targetTitle,
-          fetchText,
-          excludeLineNames: v.lines.map((l) => l.name).toSet(),
-        );
-        String validPoster = CmsParser.isBrokenPosterUrl(v.poster) ? fallback.poster : v.poster;
-        if (CmsParser.isBrokenPosterUrl(validPoster) && targetTitle.trim().isNotEmpty) {
-          final cross = await resolveCrossSourceVideo(fallback, targetTitle, fetchText);
-          if (!CmsParser.isBrokenPosterUrl(cross.poster)) {
-            validPoster = cross.poster;
-          }
-        }
-        return CmsVideo(
-          id: v.id,
-          title: targetTitle,
-          poster: validPoster,
-          remarks: v.remarks,
-          year: v.year,
-          area: v.area,
-          actor: v.actor,
-          description: v.description,
-          tag: v.tag,
-          lines: [...v.lines, ...extraLines],
-        );
-      }
+    // Catalogue entries are matched by CmsClient against imported sources,
+    // which returns the actual owning site with its resolver and credentials.
+    if (isDoubanSite(site) || isMyDriveSite(site) ||
+        fallback.id.startsWith('msearch:')) {
+      return _withoutLines(fallback);
     }
+    if (isBiliSite(site) || isDouyuSite(site)) return fallback;
 
-    // Cross-source search by title (used by `豆豆┃片单`, `我的云盘`, and any card needing multi-source lines)
-    final searchTitle = searchTitleForVideo(fallback);
-    if (searchTitle.isNotEmpty) {
-      final resolved = await resolveCrossSourceVideo(
-        fallback,
-        searchTitle,
-        fetchText,
-        siteHint: site.name,
-      );
-      if (resolved.lines.isNotEmpty) return resolved;
-    }
-
-    return fallback;
+    final backends = _requireBackends(site);
+    final bound = _homeBackendBySite[_backendKey(site)];
+    final backend = backends.firstWhere((b) => b.api == bound,
+        orElse: () => backends.first);
+    // A detail ID belongs to one backend. Never try the same number at another
+    // service, and never merge same-title search results into these lines.
+    final isAppV2 = _isAppV2Endpoint(backend.api);
+    final uri = isAppV2
+        ? _configuredUri(backend.api, {'id': fallback.id}, appPath: 'video_detail')
+        : _configuredUri(backend.api, {'ac': 'detail', 'ids': fallback.id});
+    final raw = await fetchText(uri.toString(), headers: site.headers);
+    final listing = CmsParser.parseListing(raw);
+    if (listing.videos.isEmpty) return _withoutLines(fallback);
+    final v = listing.videos.first;
+    return CmsVideo(
+      id: v.id.isEmpty ? fallback.id : v.id,
+      title: v.title.isEmpty ? fallback.title : v.title,
+      poster: CmsParser.isBrokenPosterUrl(v.poster) ? fallback.poster : v.poster,
+      remarks: v.remarks.isEmpty ? fallback.remarks : v.remarks,
+      year: v.year.isEmpty ? fallback.year : v.year,
+      area: v.area.isEmpty ? fallback.area : v.area,
+      actor: v.actor.isEmpty ? fallback.actor : v.actor,
+      description: v.description.isEmpty ? fallback.description : v.description,
+      tag: v.tag.isEmpty ? fallback.tag : v.tag,
+      lines: v.lines,
+    );
   }
+
+  static CmsVideo _withoutLines(CmsVideo video) => CmsVideo(
+    id: video.id, title: video.title, poster: video.poster,
+    remarks: video.remarks, year: video.year, area: video.area,
+    actor: video.actor, description: video.description, tag: video.tag,
+  );
 
   /// Resolves on-demand wrapper URLs (Tuxiaobei HTML, Youlai HTML, Bilibili playurl JSON, Huya room)
   /// into direct `.mp4` / `.m3u8` media stream URLs right before playback starts.
@@ -746,11 +587,6 @@ class CspBridge {
   ) async {
     if (TrailerSource.matches(site)) return TrailerSource.resolve(episode, fetchText);
     final rawUrl = episode.url.trim();
-
-    // 0. Real 4K Quark Share episode (`drive-pc.quark.cn/1/clouddrive/share/sharepage/save?...`)
-    if (rawUrl.contains('drive-pc.quark.cn/1/clouddrive/share/sharepage/save')) {
-      return _resolveQuarkShareEpisode(episode);
-    }
 
     // 1. Tuxiaobei `/play/{id}` -> extract `video-src` MP4
     if (rawUrl.contains('tuxiaobei.com/play/')) {
@@ -945,57 +781,9 @@ class CspBridge {
         cards.addAll(_myDriveQrCards);
       }
     }
-    final doubanCat = switch (categoryId) {
-      'quark' => 'hot_gaia',
-      'uc' => 'tv_hot',
-      'baidu' => 'rank_list_movie',
-      'ali' => 'rank_list_tv',
-      _ => 'tv_hot',
-    };
-    try {
-      final doubanListing = await _fetchDoubanCategory(doubanCat, pg, fetchText);
-      if (doubanListing.videos.isNotEmpty) {
-        final badge = switch (categoryId) {
-          'quark' => '夸父4K',
-          'uc' => '优汐4K',
-          'baidu' => '嘟嘟4K',
-          'ali' => '阿狸4K',
-          _ => '四盘4K',
-        };
-        for (final v in doubanListing.videos) {
-          cards.add(
-            CmsVideo(
-              id: v.id,
-              title: v.title,
-              poster: v.poster,
-              remarks: v.remarks.isEmpty ? badge : '$badge · ${v.remarks}',
-              year: v.year,
-              area: v.area,
-              actor: v.actor,
-              description: v.description,
-            ),
-          );
-        }
-        return CmsListing(
-          page: pg,
-          pageCount: doubanListing.pageCount,
-          videos: cards,
-        );
-      }
-    } catch (_) {}
-
-    final vodListing = await _fetchVodPoolCategory(
-      const CmsSite(key: 'mydrive', name: '我的云盘', type: 3, api: 'csp_MyDriveGuard'),
-      '',
-      pg,
-      fetchText,
-    );
-    cards.addAll(vodListing.videos);
-    return CmsListing(
-      page: pg,
-      pageCount: vodListing.pageCount,
-      videos: cards,
-    );
+    // These are account configuration cards, not a media catalogue. Douban
+    // posters cannot stand in for files in a user's cloud drive.
+    return CmsListing(page: pg, pageCount: 1, videos: cards);
   }
 
   static String _doubanCollectionCode(String categoryId) {
@@ -1029,7 +817,7 @@ class CspBridge {
       }
     } catch (_) {}
     // Fallback to VOD pool if Douban API is unreachable
-    return _fetchVodPoolHome(
+    return _fetchConfiguredHome(
       const CmsSite(key: 'douban_fallback', name: '豆豆', type: 3, api: 'csp_DouDouGuard'),
       fetchText,
     );
@@ -1403,31 +1191,7 @@ class CspBridge {
 
   static List<CmsCategory> _defaultBiliCategoriesForSite(CmsSite site) {
     final name = site.name;
-    if (name.contains('跳舞') || name.contains('舞蹈')) {
-      return const [
-        CmsCategory(id: '广场舞教学超清', name: '广场舞教学'),
-        CmsCategory(id: '健身操燃脂教学', name: '燃脂健身操'),
-        CmsCategory(id: '古典舞教学完整版', name: '古典舞'),
-        CmsCategory(id: '现代舞流行舞教学', name: '流行现代舞'),
-      ];
-    }
-    if (name.contains('戏曲')) {
-      return const [
-        CmsCategory(id: '经典戏曲名段超清', name: '戏曲名段'),
-        CmsCategory(id: '京剧经典全集超清', name: '京剧精选'),
-        CmsCategory(id: '黄梅戏经典选段', name: '黄梅戏'),
-        CmsCategory(id: '越剧豫剧经典全集', name: '越剧豫剧'),
-      ];
-    }
-    if (name.contains('电台') || name.contains('蜻蜓')) {
-      return const [
-        CmsCategory(id: '深夜情感电台', name: '情感电台'),
-        CmsCategory(id: '相声小品精选全集', name: '相声小品'),
-        CmsCategory(id: '历史故事广播剧', name: '历史故事'),
-        CmsCategory(id: '睡前故事助眠电台', name: '助眠电台'),
-      ];
-    }
-    if (name.contains('MV') || name.contains('音乐') || name.contains('KTV') || name.contains('舞曲') || name.contains('歌曲')) {
+    if (name.contains('MV') || name.contains('音乐')) {
       return const [
         CmsCategory(id: '华语MV超清', name: '华语MV'),
         CmsCategory(id: '抖音热歌MV', name: '抖音热歌'),
@@ -1450,13 +1214,6 @@ class CspBridge {
         CmsCategory(id: '悬疑推理有声小说', name: '悬疑推理'),
         CmsCategory(id: '仙侠玄幻有声小说', name: '仙侠玄幻'),
         CmsCategory(id: '历史评书全集', name: '历史评书'),
-      ];
-    }
-    if (name.toUpperCase().contains('WWE')) {
-      return const [
-        CmsCategory(id: 'WWE经典比赛超清', name: 'WWE精选'),
-        CmsCategory(id: 'WWE摔角狂热大赛', name: '摔角狂热'),
-        CmsCategory(id: 'UFC格斗比赛集锦', name: '格斗集锦'),
       ];
     }
     if (name.contains('看球') || name.contains('回放') || name.contains('球迷') || name.contains('体育')) {
@@ -1586,7 +1343,7 @@ class CspBridge {
       }
     } catch (_) {}
     // Fallback to VOD pool search if Bilibili search is rate-limited
-    return _fetchVodPoolSearch(
+    return _fetchConfiguredSearch(
       const CmsSite(key: 'bili', name: 'Bili', type: 3, api: 'csp_BiliGuard'),
       keyword,
       pg,
@@ -1652,56 +1409,63 @@ class CspBridge {
   }
 
   // ---------------------------------------------------------------------------
-  // MacCMS v10 VOD Pool & Cross-Source Resolution
+  // User-configured MacCMS/App endpoints
   // ---------------------------------------------------------------------------
 
   /// Backend API that served the categories for each site: category IDs are
-  /// backend-specific (e.g. 非凡 uses 1/2 while 暴风 uses 20/30), so category
+  /// backend-specific, so category
   /// queries must go to the same backend the home page came from.
   static final Map<String, String> _homeBackendBySite = {};
+
+  static String _backendKey(CmsSite site) => jsonEncode([
+    site.subscriptionId, site.sourceKey, site.isEffectivelyPrivate,
+    site.api, site.ext,
+  ]);
+
+  static List<({String name, String api})> _requireBackends(CmsSite site) {
+    final backends = backendsForSite(site);
+    if (backends.isEmpty) {
+      throw FormatException(site.unsupportedReason);
+    }
+    return backends;
+  }
 
   static bool _isAppV2Endpoint(String api) {
     final lower = api.toLowerCase();
     return lower.contains('api.php/app') || lower.contains('xgapp.php');
   }
 
-  static Future<(List<CmsCategory>, CmsListing)> _fetchVodPoolHome(
+  static Uri _configuredUri(String api, Map<String, String> parameters,
+      {String appPath = ''}) {
+    final base = Uri.parse(api);
+    final path = appPath.isEmpty ? base.path
+        : '${base.path.endsWith('/') ? base.path : '${base.path}/'}$appPath';
+    return base.replace(path: path,
+        queryParameters: {...base.queryParameters, ...parameters});
+  }
+
+  static Future<(List<CmsCategory>, CmsListing)> _fetchConfiguredHome(
     CmsSite site,
     CspHttpTextFetcher fetchText,
   ) async {
-    final direct = backendsForSite(site);
-    final backends = direct.isNotEmpty
-        ? direct
-        : (guardAdapterFor(site) != null ? _orderedVodPoolForSite(site) : const <({String name, String api})>[]);
-    if (backends.isEmpty) {
-      throw const FormatException('这个来源需要专用插件运行环境，当前设备没有可调用的接口。可切换到标准点播源，或在支持该扩展的设备上打开。');
-    }
+    final backends = _requireBackends(site);
     for (final backend in backends.take(4)) {
       try {
         final isAppV2 = _isAppV2Endpoint(backend.api);
-        final baseApi = backend.api.endsWith('/') ? backend.api : '${backend.api}/';
         final listUri = isAppV2
-            ? Uri.parse('${baseApi}nav')
-            : Uri.parse(backend.api).replace(queryParameters: {'ac': 'list'});
+            ? _configuredUri(backend.api, {}, appPath: 'nav')
+            : _configuredUri(backend.api, {'ac': 'list'});
         final detailUri = isAppV2
-            ? Uri.parse('${baseApi}video').replace(queryParameters: {'pg': '1'})
-            : Uri.parse(backend.api).replace(queryParameters: {'ac': 'detail'});
+            ? _configuredUri(backend.api, {'pg': '1'}, appPath: 'video')
+            : _configuredUri(backend.api, {'ac': 'detail'});
         final results = await Future.wait([
-          fetchText(
-            listUri.toString(),
-            headers: site.headers,
-            requestTimeout: const Duration(seconds: 5),
-          ),
-          fetchText(
-            detailUri.toString(),
-            headers: site.headers,
-            requestTimeout: const Duration(seconds: 5),
-          ),
+          fetchText(listUri.toString(), headers: site.headers),
+          fetchText(detailUri.toString(), headers: site.headers),
         ]);
         final categories = CmsParser.parseCategories(results[0]);
         final listing = CmsParser.parseListing(results[1]);
         if (categories.isNotEmpty || listing.videos.isNotEmpty) {
-          _homeBackendBySite[site.key] = backend.api;
+          _homeBackendBySite[_backendKey(site)] = backend.api;
           return (categories, listing);
         }
       } catch (_) {}
@@ -1709,18 +1473,15 @@ class CspBridge {
     throw Exception('无法连接片源服务，请稍后重试');
   }
 
-  static Future<CmsListing> _fetchVodPoolCategory(
+  static Future<CmsListing> _fetchConfiguredCategory(
     CmsSite site,
     String categoryId,
     int page,
     CspHttpTextFetcher fetchText, [
     List<String> childIds = const [],
   ]) async {
-    final direct = backendsForSite(site);
-    final all = direct.isNotEmpty
-        ? direct
-        : (guardAdapterFor(site) != null ? _orderedVodPoolForSite(site) : const <({String name, String api})>[]);
-    final bound = _homeBackendBySite[site.key];
+    final all = _requireBackends(site);
+    final bound = _homeBackendBySite[_backendKey(site)];
     final backends = [
       if (bound != null) ...all.where((b) => b.api == bound),
       ...all.where((b) => b.api != bound),
@@ -1728,17 +1489,10 @@ class CspBridge {
     Future<CmsListing> query(String api, String id) async {
       final pgStr = (page < 1 ? 1 : page).toString();
       if (_isAppV2Endpoint(api)) {
-        final baseApi = api.endsWith('/') ? api : '$api/';
-        final uri = Uri.parse('${baseApi}video').replace(
-          queryParameters: {'pg': pgStr, if (id.isNotEmpty) 'tid': id},
+        final uri = _configuredUri(api,
+          {'pg': pgStr, if (id.isNotEmpty) 'tid': id}, appPath: 'video',
         );
-        return CmsParser.parseListing(
-          await fetchText(
-            uri.toString(),
-            headers: site.headers,
-            requestTimeout: const Duration(seconds: 5),
-          ),
-        );
+        return CmsParser.parseListing(await fetchText(uri.toString(), headers: site.headers));
       }
       final params = <String, String>{
         'ac': 'detail',
@@ -1747,14 +1501,8 @@ class CspBridge {
       if (id.isNotEmpty) {
         params['t'] = id;
       }
-      final uri = Uri.parse(api).replace(queryParameters: params);
-      return CmsParser.parseListing(
-        await fetchText(
-          uri.toString(),
-          headers: site.headers,
-          requestTimeout: const Duration(seconds: 5),
-        ),
-      );
+      final uri = _configuredUri(api, params);
+      return CmsParser.parseListing(await fetchText(uri.toString(), headers: site.headers));
     }
     for (final backend in backends.take(3)) {
       try {
@@ -1778,7 +1526,7 @@ class CspBridge {
     return const CmsListing();
   }
 
-  static Future<CmsListing> _fetchVodPoolSearch(
+  static Future<CmsListing> _fetchConfiguredSearch(
     CmsSite site,
     String keyword,
     int page,
@@ -1786,29 +1534,20 @@ class CspBridge {
   ) async {
     final trimmed = keyword.trim();
     if (trimmed.isEmpty) return const CmsListing();
-    final direct = backendsForSite(site);
-    final backends = direct.isNotEmpty
-        ? direct
-        : (guardAdapterFor(site) != null ? _orderedVodPoolForSite(site) : const <({String name, String api})>[]);
+    final backends = _requireBackends(site);
     for (final backend in backends.take(3)) {
       try {
         final pgStr = (page < 1 ? 1 : page).toString();
         final isAppV2 = _isAppV2Endpoint(backend.api);
-        final baseApi = backend.api.endsWith('/') ? backend.api : '${backend.api}/';
         final uri = isAppV2
-            ? Uri.parse('${baseApi}search').replace(queryParameters: {'text': trimmed, 'pg': pgStr})
-            : Uri.parse(backend.api).replace(
-                queryParameters: {
+            ? _configuredUri(backend.api, {'text': trimmed, 'pg': pgStr}, appPath: 'search')
+            : _configuredUri(backend.api, {
                   'ac': 'detail',
                   'wd': trimmed,
                   'pg': pgStr,
                 },
               );
-        final raw = await fetchText(
-          uri.toString(),
-          headers: site.headers,
-          requestTimeout: const Duration(seconds: 4),
-        );
+        final raw = await fetchText(uri.toString(), headers: site.headers);
         final listing = CmsParser.parseListing(raw);
         if (listing.videos.isNotEmpty) return listing;
       } catch (_) {}
@@ -1832,897 +1571,52 @@ class CspBridge {
     return video.title.trim();
   }
 
-  static String _normalizeTitleForMatch(String raw) {
-    var s = raw
-        .replaceAll(RegExp(r'[\(（\[【].*?[\)）\]】]'), '')
-        .replaceAll(RegExp(r'(?:19|20)\d{2}版?$'), '')
-        .replaceAll(RegExp(r'[\s:：·\-_—!！?？,，.。]'), '')
-        .toLowerCase()
-        .trim();
-    return s.isEmpty ? raw.trim().toLowerCase() : s;
+  static int _rankDirectLineQuality(CmsLine line) {
+    final lower = line.name.toLowerCase();
+    int score = 0;
+    if (lower.contains('4k') || lower.contains('2160') || lower.contains('uhd')) {
+      score += 100;
+    }
+    if (lower.contains('原画') || lower.contains('蓝光') || lower.contains('高码') || lower.contains('hdr')) {
+      score += 60;
+    }
+    if (lower.contains('2k') || lower.contains('1440')) {
+      score += 40;
+    }
+    if (lower.contains('超清') || lower.contains('1080')) {
+      score += 20;
+    }
+    for (final ep in line.episodes.take(3)) {
+      final epLower = '${ep.name} ${ep.url}'.toLowerCase();
+      if (epLower.contains('4k') || epLower.contains('2160')) score += 50;
+      if (epLower.contains('.mp4') || epLower.contains('.mkv')) score += 15;
+    }
+    return score;
   }
 
-  static Future<CmsVideo> resolveCrossSourceVideo(
-    CmsVideo fallback,
-    String searchTitle,
-    CspHttpTextFetcher fetchText, {
-    String siteHint = '',
-  }) async {
-    final cleanTitle = searchTitle
-        .replaceAll(RegExp(r'[\(（\[【].*?[\)）\]】]'), '')
-        .trim();
-    final strippedYearTitle = cleanTitle.length > 4
-        ? cleanTitle.replaceFirst(RegExp(r'(?:19|20)\d{2}版?$'), '').trim()
-        : cleanTitle;
-    final query = strippedYearTitle.isNotEmpty
-        ? strippedYearTitle
-        : (cleanTitle.isEmpty ? searchTitle : cleanTitle);
-    final normTarget = _normalizeTitleForMatch(searchTitle);
-    final directLines = <CmsLine>[];
-    final fallbackBrokenLines = <CmsLine>[];
-    final seenDirectNames = <String>{};
-    String bestPoster = CmsParser.isBrokenPosterUrl(fallback.poster) ? '' : fallback.poster;
-    String bestDesc = fallback.description;
-    String bestActor = fallback.actor;
-    String bestYear = fallback.year;
-    String bestArea = fallback.area;
-
-    // 1. Include fallback's own healthy direct lines first so the exact item
-    //    the user opened is always the primary playback line.
-    for (final line in fallback.lines) {
-      final playable = line.episodes.where((e) => e.isDirectPlayable).toList(growable: false);
-      if (playable.isEmpty) continue;
-      final healthy = playable.where((e) => !isDeadOrStubStreamUrl(e.url)).toList(growable: false);
-      final friendly = CmsParser.friendlyLineName(line.name);
-      if (healthy.isNotEmpty) {
-        if (seenDirectNames.add(friendly)) {
-          directLines.add(CmsLine(name: friendly, episodes: healthy));
-        }
-      } else {
-        fallbackBrokenLines.add(CmsLine(name: friendly, episodes: playable));
-      }
-    }
-
-    final quarkFuture = siteHint.trim().isNotEmpty
-        ? _scrapeRealQuarkShareEpisodes(query, cleanTitle, normTarget, fetchText)
-        : Future.value(const <_QuarkShareEpisodeItem>[]);
-
-    final futures = vodPool.take(_primaryVodPoolCount).map((backend) async {
-      try {
-        final uri = Uri.parse(backend.api).replace(
-          queryParameters: {'ac': 'detail', 'wd': query, 'pg': '1'},
-        );
-        final raw = await fetchText(
-          uri.toString(),
-          requestTimeout: const Duration(seconds: 7),
-        );
-        final listing = CmsParser.parseListing(raw);
-        return (backend.name, listing.videos);
-      } catch (_) {
-        return (backend.name, const <CmsVideo>[]);
-      }
-    });
-
-    final results = await Future.wait(futures);
-    final realQuarkEpisodes = await quarkFuture;
-    for (final (backendName, videos) in results) {
-      if (videos.isEmpty) continue;
-      // Prefer exact title match first, then normalized title match, then substring match
-      CmsVideo? matched;
-      for (final v in videos) {
-        final vt = v.title.trim();
-        if (vt == searchTitle || vt == cleanTitle || vt == query) {
-          matched = v;
-          break;
-        }
-      }
-      if (matched == null) {
-        for (final v in videos) {
-          if (_normalizeTitleForMatch(v.title) == normTarget) {
-            matched = v;
-            break;
-          }
-        }
-      }
-      if (matched == null) continue;
-      if (bestPoster.isEmpty && !CmsParser.isBrokenPosterUrl(matched.poster)) {
-        bestPoster = matched.poster;
-      }
-      if (bestDesc.isEmpty && matched.description.isNotEmpty) bestDesc = matched.description;
-      if (bestActor.isEmpty && matched.actor.isNotEmpty) bestActor = matched.actor;
-      if (bestYear.isEmpty && matched.year.isNotEmpty) bestYear = matched.year;
-      if (bestArea.isEmpty && matched.area.isNotEmpty) bestArea = matched.area;
-
-      for (final line in matched.lines) {
-        final playable = line.episodes
-            .where((e) => e.isDirectPlayable && !isDeadOrStubStreamUrl(e.url))
-            .toList(growable: false);
-        if (playable.isNotEmpty) {
-          final friendly = CmsParser.friendlyLineName(line.name);
-          final candidateName = seenDirectNames.add(friendly)
-              ? friendly
-              : (seenDirectNames.add(backendName) ? backendName : '$backendName · $friendly');
-          seenDirectNames.add(candidateName);
-          directLines.add(
-            CmsLine(
-              name: candidateName,
-              episodes: playable,
-            ),
-          );
-        }
-      }
-    }
-
-    if (directLines.isEmpty && fallbackBrokenLines.isNotEmpty) {
-      for (final line in fallbackBrokenLines) {
-        if (seenDirectNames.add(line.name)) {
-          directLines.add(line);
-        }
-      }
-    }
-
-    // When siteHint is provided (e.g. from DetailScreen / CspBridge.fetchDetail),
-    // prepend 4K Netdisk lines (夸父 / 优汐 / 嘟嘟 / 阿狸); when siteHint is empty,
-    // preserve only directLines.
-    final lines = <CmsLine>[];
-    if (siteHint.trim().isNotEmpty && (realQuarkEpisodes.isNotEmpty || directLines.isNotEmpty)) {
-      int maxEpCount = 0;
-      for (final l in directLines) {
-        if (l.episodes.length > maxEpCount) maxEpCount = l.episodes.length;
-      }
-      final fullLengthLines = maxEpCount > 1
-          ? directLines
-              .where((l) => l.episodes.length == maxEpCount)
-              .toList(growable: false)
-          : directLines;
-      final netdiskPool = fullLengthLines.isNotEmpty ? fullLengthLines : directLines;
-      final netdiskOrder = _netdiskLineOrderForSite(siteHint);
-      if (realQuarkEpisodes.isNotEmpty) {
-        for (int idx = 0; idx < netdiskOrder.length; idx++) {
-          final netdiskLabel = netdiskOrder[idx];
-          final mode = netdiskLabel.contains('无限') || netdiskLabel.contains('原画')
-              ? 'original'
-              : 'speed';
-          final fallbackLine = netdiskPool.isNotEmpty
-              ? netdiskPool[idx % netdiskPool.length]
-              : null;
-          lines.add(
-            CmsLine(
-              name: netdiskLabel,
-              episodes: [
-                for (int epIdx = 0; epIdx < realQuarkEpisodes.length; epIdx++)
-                  CmsEpisode(
-                    name: realQuarkEpisodes[epIdx].displayName,
-                    url: Uri.https(
-                      'drive-pc.quark.cn',
-                      '/1/clouddrive/share/sharepage/save',
-                      {
-                        'pwd_id': realQuarkEpisodes[epIdx].shareId,
-                        'stoken': realQuarkEpisodes[epIdx].stoken,
-                        'fid': realQuarkEpisodes[epIdx].fid,
-                        'fid_token': realQuarkEpisodes[epIdx].fidToken,
-                        'fname': realQuarkEpisodes[epIdx].fileName,
-                        'mode': mode,
-                        if (fallbackLine != null && epIdx < fallbackLine.episodes.length)
-                          'fallback': fallbackLine.episodes[epIdx].url,
-                      },
-                    ).toString(),
-                    headers: const {'User-Agent': _quarkPcUa},
-                  ),
-              ],
-            ),
-          );
-        }
-      } else {
-        for (int idx = 0; idx < netdiskOrder.length; idx++) {
-          final netdiskLabel = netdiskOrder[idx];
-          final sourceLine = netdiskPool[idx % netdiskPool.length];
-          final totalCount = sourceLine.episodes.length;
-          lines.add(
-            CmsLine(
-              name: netdiskLabel,
-              episodes: [
-                for (int epIdx = 0; epIdx < totalCount; epIdx++)
-                  CmsEpisode(
-                    name: sourceLine.episodes[epIdx].name,
-                    url: sourceLine.episodes[epIdx].url,
-                    headers: sourceLine.episodes[epIdx].headers,
-                  ),
-              ],
-            ),
-          );
-        }
-      }
-    }
-    lines.addAll(directLines);
-
-    return CmsVideo(
-      id: fallback.id,
-      title: fallback.title,
-      poster: bestPoster,
-      remarks: fallback.remarks,
-      year: bestYear,
-      area: bestArea,
-      actor: bestActor,
-      description: bestDesc,
-      tag: fallback.tag,
-      lines: lines,
-    );
-  }
-
-  static List<String> _netdiskLineOrderForSite(String siteHint) {
-    const all = [
-      '夸父智1',
-      '夸父无限1',
-      '优汐智1',
-      '优汐无限1',
-      '嘟嘟无限2',
-      '嘟嘟无限3',
-      '阿狸原画',
+  static List<CmsLine> _prioritizeDirectLinesFor4K(List<CmsLine> lines) {
+    if (lines.length <= 1) return lines;
+    final indexed = <(int, int, CmsLine)>[
+      for (int i = 0; i < lines.length; i++)
+        (i, _rankDirectLineQuality(lines[i]), lines[i]),
     ];
-    final h = siteHint.toLowerCase();
-    if (h.contains('优汐') || h.contains('uc')) {
-      return ['优汐智1', '优汐无限1', '夸父智1', '夸父无限1', '嘟嘟无限2', '阿狸原画'];
-    }
-    if (h.contains('百度') || h.contains('嘟嘟') || h.contains('bpanso')) {
-      return ['嘟嘟无限2', '嘟嘟无限3', '夸父智1', '优汐智1', '阿狸原画'];
-    }
-    if (h.contains('阿狸') || h.contains('阿里') || h.contains('ypanso') || h.contains('易搜') || h.contains('盘他') || h.contains('盘她')) {
-      return ['阿狸原画', '夸父智1', '优汐智1', '嘟嘟无限2'];
-    }
-    return all;
-  }
-
-  static Future<bool> _hasLoggedInQuarkCookie() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = (prefs.getString('mm_netdisk_cred_quark_v1') ?? '').trim();
-      final cookie = QuarkAccountSession.tryParseCredential(raw)?.cookie ?? raw;
-      return cookie.trim().isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  static String _formatBytesSize(int bytes) {
-    if (bytes <= 0) return '4K';
-    final gb = bytes / (1024 * 1024 * 1024);
-    if (gb >= 1.0) return '${gb.toStringAsFixed(2)}GB';
-    final mb = bytes / (1024 * 1024);
-    return '${mb.toStringAsFixed(0)}MB';
-  }
-
-  static bool _isVideoFileName(String name) {
-    final lower = name.toLowerCase();
-    return lower.endsWith('.mkv') ||
-        lower.endsWith('.mp4') ||
-        lower.endsWith('.ts') ||
-        lower.endsWith('.m2ts') ||
-        lower.endsWith('.mov') ||
-        lower.endsWith('.avi') ||
-        lower.endsWith('.flv') ||
-        lower.endsWith('.iso');
-  }
-
-  static Future<List<_QuarkShareEpisodeItem>> _scrapeRealQuarkShareEpisodes(
-    String query,
-    String cleanTitle,
-    String normTarget,
-    CspHttpTextFetcher fetchText,
-  ) async {
-    try {
-      final searchUrl =
-          'https://www.wogg.net/vodsearch/-------------.html?wd=${Uri.encodeQueryComponent(query)}';
-      final searchHtml = await fetchText(
-        searchUrl,
-        headers: const {
-          'User-Agent': _desktopSafariUa,
-          'Referer': 'https://www.wogg.net/',
-        },
-        requestTimeout: const Duration(seconds: 6),
-      );
-      if (!searchHtml.contains('/voddetail/')) return const [];
-
-      String? selectedDetailPath;
-      String? firstDetailPath;
-      final anchorRegex = RegExp(
-        r'''<a[^>]+href\s*=\s*["'](/voddetail/\d+\.html)["']([^>]*)>([\s\S]*?)</a>''',
-        caseSensitive: false,
-      );
-      for (final m in anchorRegex.allMatches(searchHtml)) {
-        final path = (m.group(1) ?? '').trim();
-        if (path.isEmpty) continue;
-        firstDetailPath ??= path;
-        final attrs = m.group(2) ?? '';
-        final inner = (m.group(3) ?? '')
-            .replaceAll(RegExp(r'<[^>]*>'), '')
-            .trim();
-        final titleMatch = RegExp(r'''title\s*=\s*["']([^"']+)["']''', caseSensitive: false)
-            .firstMatch(attrs);
-        final candidateTitle = (titleMatch?.group(1) ?? inner).trim();
-        if (candidateTitle.isEmpty) continue;
-        final normCandidate = _normalizeTitleForMatch(candidateTitle);
-        if (candidateTitle == cleanTitle ||
-            candidateTitle == query ||
-            (normTarget.isNotEmpty &&
-                (normCandidate == normTarget || normCandidate.contains(normTarget)))) {
-          selectedDetailPath = path;
-          break;
-        }
-      }
-      final detailPath = selectedDetailPath ??
-          firstDetailPath ??
-          RegExp(r'/voddetail/\d+\.html').firstMatch(searchHtml)?.group(0);
-      if (detailPath == null || detailPath.isEmpty) return const [];
-
-      final detailHtml = await fetchText(
-        Uri.https('www.wogg.net', detailPath).toString(),
-        headers: const {
-          'User-Agent': _desktopSafariUa,
-          'Referer': 'https://www.wogg.net/',
-        },
-        requestTimeout: const Duration(seconds: 6),
-      );
-      final shareRegex = RegExp(r'https?://pan\.quark\.cn/s/([A-Za-z0-9_-]+)');
-      final shareIds = <String>[];
-      final seenShares = <String>{};
-      for (final m in shareRegex.allMatches(detailHtml)) {
-        final id = (m.group(1) ?? '').trim();
-        if (id.isNotEmpty && seenShares.add(id)) {
-          shareIds.add(id);
-          if (shareIds.length >= 2) break;
-        }
-      }
-      for (final shareId in shareIds) {
-        final items = await _listQuarkShareVideoFiles(shareId);
-        if (items.isNotEmpty) return items;
-      }
-    } catch (_) {}
-    return const [];
-  }
-
-  static Future<Map<String, dynamic>?> _quarkHttpJson(
-    HttpClient client,
-    String method,
-    Uri uri, {
-    String cookie = '',
-    Map<String, dynamic>? body,
-  }) async {
-    final req = await client.openUrl(method, uri).timeout(const Duration(seconds: 6));
-    req.headers.set('User-Agent', _quarkPcUa);
-    req.headers.set('Accept', 'application/json, text/plain, */*');
-    req.headers.set('Referer', 'https://pan.quark.cn/');
-    req.headers.set('Origin', 'https://pan.quark.cn');
-    if (cookie.isNotEmpty) {
-      req.headers.set('Cookie', cookie);
-    }
-    if (body != null) {
-      final bytes = utf8.encode(jsonEncode(body));
-      req.headers.contentType = ContentType.json;
-      req.contentLength = bytes.length;
-      req.add(bytes);
-    }
-    final resp = await req.close().timeout(const Duration(seconds: 6));
-    final text = await utf8.decodeStream(resp).timeout(const Duration(seconds: 6));
-    final decoded = jsonDecode(text);
-    return decoded is Map<String, dynamic> ? decoded : null;
-  }
-
-  static Future<List<_QuarkShareEpisodeItem>> _listQuarkShareVideoFiles(
-    String shareId,
-  ) async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
-    try {
-      final tokenResp = await _quarkHttpJson(
-        client,
-        'POST',
-        Uri.parse('https://drive-pc.quark.cn/1/clouddrive/share/sharepage/token?pr=ucpro&fr=pc'),
-        body: {'pwd_id': shareId, 'passcode': ''},
-      );
-      final stoken = (tokenResp?['data']?['stoken'] ?? '').toString().trim();
-      if (stoken.isEmpty) return const [];
-
-      final collected = <_QuarkShareEpisodeItem>[];
-      Future<void> walkDir(String pdirFid, int depth) async {
-        if (depth > 2 || collected.length >= 250) return;
-        final detailUri = Uri.https(
-          'drive-pc.quark.cn',
-          '/1/clouddrive/share/sharepage/detail',
-          {
-            'pr': 'ucpro',
-            'fr': 'pc',
-            'pwd_id': shareId,
-            'stoken': stoken,
-            'pdir_fid': pdirFid,
-            'force': '0',
-            '_page': '1',
-            '_size': '200',
-            '_fetch_banner': '0',
-            '_fetch_share': '0',
-            '_fetch_total': '1',
-            '_sort': 'file_type:asc,file_name:asc',
-          },
-        );
-        final detailResp = await _quarkHttpJson(client, 'GET', detailUri);
-        final list = detailResp?['data']?['list'];
-        if (list is! List) return;
-        final subDirs = <String>[];
-        for (final item in list) {
-          if (item is! Map) continue;
-          final fid = (item['fid'] ?? '').toString().trim();
-          final fileName = (item['file_name'] ?? '').toString().trim();
-          if (fid.isEmpty || fileName.isEmpty) continue;
-          final isDir = item['dir'] == true || item['file'] == false;
-          if (isDir) {
-            subDirs.add(fid);
-            continue;
-          }
-          final fidToken = (item['share_fid_token'] ?? '').toString().trim();
-          final category = (item['category'] as num?)?.toInt() ?? 0;
-          final size = (item['size'] as num?)?.toInt() ?? 0;
-          if (fidToken.isNotEmpty && (category == 1 || _isVideoFileName(fileName))) {
-            collected.add(
-              _QuarkShareEpisodeItem(
-                shareId: shareId,
-                stoken: stoken,
-                fid: fid,
-                fidToken: fidToken,
-                fileName: fileName,
-                size: size,
-                displayName: '[${_formatBytesSize(size)}]$fileName',
-              ),
-            );
-          }
-        }
-        for (final dirFid in subDirs.take(6)) {
-          await walkDir(dirFid, depth + 1);
-        }
-      }
-
-      await walkDir('0', 0);
-      if (collected.isEmpty) return const [];
-      final largeFiles = collected.where((e) => e.size >= 20 * 1024 * 1024).toList();
-      final filtered = largeFiles.isNotEmpty ? largeFiles : collected;
-      filtered.sort((a, b) => _compareEpisodeFileNames(a.fileName, b.fileName));
-      return filtered;
-    } catch (_) {
-      return const [];
-    } finally {
-      client.close(force: true);
-    }
-  }
-
-  static int _compareEpisodeFileNames(String a, String b) {
-    final epRegex = RegExp(r'(?:[Ss]\d+[Ee](\d+)|[Ee][Pp]?(\d+)|第(\d+)[集话期])');
-    final ma = epRegex.firstMatch(a);
-    final mb = epRegex.firstMatch(b);
-    final na = int.tryParse(ma?.group(1) ?? ma?.group(2) ?? ma?.group(3) ?? '');
-    final nb = int.tryParse(mb?.group(1) ?? mb?.group(2) ?? mb?.group(3) ?? '');
-    if (na != null && nb != null && na != nb) {
-      return na.compareTo(nb);
-    }
-    return a.compareTo(b);
-  }
-
-  static Future<String> _fetchQuarkSocialDownloadUrl(
-    HttpClient client,
-    String cookie,
-    String fid,
-  ) async {
-    try {
-      final convList = await _quarkHttpJson(
-        client,
-        'GET',
-        Uri.parse('https://drive-social-api.quark.cn/1/clouddrive/chat/conv/list?pr=ucpro&fr=pc&_page=1&_size=50'),
-        cookie: cookie,
-      );
-      final convs = convList?['data']?['list'];
-      String? convId;
-      if (convs is List) {
-        for (final c in convs) {
-          if (c is Map && c['conversation_id'] != null) {
-            convId = c['conversation_id'].toString().trim();
-            if (convId.isNotEmpty) break;
-          }
-        }
-      }
-      if (convId == null || convId.isEmpty) return '';
-      await _quarkHttpJson(
-        client,
-        'POST',
-        Uri.parse('https://drive-social-api.quark.cn/1/clouddrive/chat/conv/msg/batch_send?pr=ucpro&fr=pc'),
-        cookie: cookie,
-        body: {
-          'conversation_ids': [convId],
-          'To_ids': const [],
-          'msg_list': [
-            {'type': 2, 'fid': fid, 'content': ''},
-          ],
-          'send_scenes': 'file_share',
-        },
-      );
-      final convInfo = await _quarkHttpJson(
-        client,
-        'GET',
-        Uri.parse('https://drive-social-api.quark.cn/1/clouddrive/chat/conv/info?pr=ucpro&fr=pc&conversation_id=${Uri.encodeQueryComponent(convId)}'),
-        cookie: cookie,
-      );
-      final lastMsgId = convInfo?['data']?['conversation']?['last_msg']?['store_msg_id']?.toString().trim() ?? '';
-      if (lastMsgId.isEmpty) return '';
-      final tokenResp = await _quarkHttpJson(
-        client,
-        'POST',
-        Uri.parse('https://drive-social-api.quark.cn/1/clouddrive/chat/conv/file/acquire_dl_token?pr=ucpro&fr=pc'),
-        cookie: cookie,
-        body: {
-          'conversation_id': convId,
-          'conversation_type': 3,
-          'msg_id': int.tryParse(lastMsgId) ?? lastMsgId,
-        },
-      );
-      final dlToken = (tokenResp?['data']?['token'] ?? '').toString().trim();
-      if (dlToken.isEmpty) return '';
-      final dlResp = await _quarkHttpJson(
-        client,
-        'POST',
-        Uri.parse('https://drive-pc.quark.cn/1/clouddrive/file/download?pr=ucpro&fr=pc'),
-        cookie: cookie,
-        body: {
-          'fids': [fid],
-          'speedup_session': '',
-          'token': dlToken,
-        },
-      );
-      final dlList = dlResp?['data'];
-      if (dlList is List && dlList.isNotEmpty && dlList.first is Map) {
-        return (dlList.first['download_url'] ?? '').toString().trim();
-      }
-    } catch (_) {}
-    return '';
-  }
-
-  static Future<CmsEpisode> _resolveQuarkShareEpisode(CmsEpisode episode) async {
-    final uri = Uri.parse(episode.url.trim());
-    final shareId = (uri.queryParameters['pwd_id'] ?? '').trim();
-    var stoken = (uri.queryParameters['stoken'] ?? '').trim();
-    final fid = (uri.queryParameters['fid'] ?? '').trim();
-    final fidToken = (uri.queryParameters['fid_token'] ?? '').trim();
-    final fileName = (uri.queryParameters['fname'] ?? '').trim();
-    final mode = (uri.queryParameters['mode'] ?? 'speed').trim();
-    final fallbackUrl = (uri.queryParameters['fallback'] ?? '').trim();
-
-    String cookie = '';
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = (prefs.getString('mm_netdisk_cred_quark_v1') ?? '').trim();
-      cookie = (QuarkAccountSession.tryParseCredential(raw)?.cookie ?? raw).trim();
-    } catch (_) {}
-
-    if (cookie.isEmpty) {
-      if (fallbackUrl.isNotEmpty) {
-        return CmsEpisode(name: episode.name, url: fallbackUrl);
-      }
-      throw const FormatException('请先在「我的云盘 / 设置」扫码登录夸克网盘以播放 4K 原画资源');
-    }
-
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-    try {
-      if (stoken.isEmpty && shareId.isNotEmpty) {
-        final tokenResp = await _quarkHttpJson(
-          client,
-          'POST',
-          Uri.parse('https://drive-pc.quark.cn/1/clouddrive/share/sharepage/token?pr=ucpro&fr=pc'),
-          cookie: cookie,
-          body: {'pwd_id': shareId, 'passcode': ''},
-        );
-        stoken = (tokenResp?['data']?['stoken'] ?? '').toString().trim();
-      }
-      if (shareId.isEmpty || stoken.isEmpty || fid.isEmpty || fidToken.isEmpty) {
-        throw const FormatException('夸克分享链接参数不完整');
-      }
-
-      // 1. Find or create `0000temp` directory
-      String tempDirFid = '';
-      final rootSort = await _quarkHttpJson(
-        client,
-        'GET',
-        Uri.parse('https://drive-pc.quark.cn/1/clouddrive/file/sort?pr=ucpro&fr=pc&pdir_fid=0&_page=1&_size=100&_sort=file_type:asc,updated_at:desc'),
-        cookie: cookie,
-      );
-      final rootList = rootSort?['data']?['list'];
-      if (rootList is List) {
-        for (final item in rootList) {
-          if (item is Map &&
-              (item['dir'] == true || item['file'] == false) &&
-              item['file_name'] == '0000temp') {
-            tempDirFid = (item['fid'] ?? '').toString().trim();
-            break;
-          }
-        }
-      }
-      if (tempDirFid.isEmpty) {
-        final mkdirResp = await _quarkHttpJson(
-          client,
-          'POST',
-          Uri.parse('https://drive-pc.quark.cn/1/clouddrive/file?pr=ucpro&fr=pc'),
-          cookie: cookie,
-          body: {
-            'pdir_fid': '0',
-            'file_name': '0000temp',
-            'dir_path': '',
-            'dir_init_lock': false,
-          },
-        );
-        tempDirFid = (mkdirResp?['data']?['fid'] ?? '').toString().trim();
-      }
-      if (tempDirFid.isEmpty) {
-        throw const FormatException('无法访问夸克网盘临时目录');
-      }
-
-      // 2. Check existing files in `0000temp` (reuse if same file, delete stale files to free quota)
-      String savedFid = '';
-      final tempSort = await _quarkHttpJson(
-        client,
-        'GET',
-        Uri.parse('https://drive-pc.quark.cn/1/clouddrive/file/sort?pr=ucpro&fr=pc&pdir_fid=$tempDirFid&_page=1&_size=100&_sort=file_type:asc,updated_at:desc'),
-        cookie: cookie,
-      );
-      final tempList = tempSort?['data']?['list'];
-      final staleFids = <String>[];
-      if (tempList is List) {
-        for (final item in tempList) {
-          if (item is! Map) continue;
-          final itemFid = (item['fid'] ?? '').toString().trim();
-          final itemName = (item['file_name'] ?? '').toString().trim();
-          if (itemFid.isEmpty) continue;
-          if (savedFid.isEmpty && fileName.isNotEmpty && itemName == fileName) {
-            savedFid = itemFid;
-          } else {
-            staleFids.add(itemFid);
-          }
-        }
-      }
-      if (staleFids.isNotEmpty) {
-        await _quarkHttpJson(
-          client,
-          'POST',
-          Uri.parse('https://drive-pc.quark.cn/1/clouddrive/file/delete?pr=ucpro&fr=pc'),
-          cookie: cookie,
-          body: {
-            'action_type': 2,
-            'filelist': staleFids,
-            'exclude_fids': const [],
-          },
-        ).catchError((_) => null);
-      }
-
-      // 3. Save shared file to `0000temp` if not already cached
-      if (savedFid.isEmpty) {
-        final saveResp = await _quarkHttpJson(
-          client,
-          'POST',
-          Uri.parse('https://drive-pc.quark.cn/1/clouddrive/share/sharepage/save?pr=ucpro&fr=pc'),
-          cookie: cookie,
-          body: {
-            'fid_list': [fid],
-            'fid_token_list': [fidToken],
-            'to_pdir_fid': tempDirFid,
-            'pwd_id': shareId,
-            'stoken': stoken,
-            'pdir_fid': '0',
-            'scene': 'link',
-          },
-        );
-        final taskId = (saveResp?['data']?['task_id'] ?? '').toString().trim();
-        if (taskId.isNotEmpty) {
-          for (int i = 0; i < 12; i++) {
-            await Future<void>.delayed(const Duration(milliseconds: 250));
-            final taskResp = await _quarkHttpJson(
-              client,
-              'GET',
-              Uri.parse('https://drive-pc.quark.cn/1/clouddrive/task?pr=ucpro&fr=pc&task_id=$taskId&retry_index=$i'),
-              cookie: cookie,
-            );
-            final topFids = taskResp?['data']?['save_as']?['save_as_top_fids'];
-            if (topFids is List && topFids.isNotEmpty) {
-              savedFid = topFids.first.toString().trim();
-              if (savedFid.isNotEmpty) break;
-            }
-          }
-        }
-      }
-      if (savedFid.isEmpty) {
-        throw const FormatException('夸克网盘转存 4K 资源超时');
-      }
-
-      final playHeaders = <String, String>{
-        'User-Agent': _quarkPcUa,
-        'Cookie': cookie,
-        'Referer': 'https://pan.quark.cn/',
-      };
-
-      // 4. Fetch 4K / 2K / Super cloud transcode streams
-      final transcodeVariants = <CmsEpisode>[];
-      try {
-        final playResp = await _quarkHttpJson(
-          client,
-          'POST',
-          Uri.parse('https://drive-pc.quark.cn/1/clouddrive/file/v2/play?pr=ucpro&fr=pc'),
-          cookie: cookie,
-          body: {
-            'fid': savedFid,
-            'resolutions': 'normal,low,high,super,2k,4k',
-            'supports': 'fmp4,m3u8',
-          },
-        );
-        final videoList = playResp?['data']?['video_list'];
-        if (videoList is List) {
-          const order = ['4k', '2k', 'super', 'high', 'normal', 'low'];
-          const labels = {
-            '4k': '4K云盘',
-            '2k': '2K云盘',
-            'super': '超清云盘',
-            'high': '高清云盘',
-            'normal': '标清云盘',
-            'low': '流畅云盘',
-          };
-          for (final resKey in order) {
-            for (final item in videoList) {
-              if (item is! Map) continue;
-              if (item['resolution']?.toString().toLowerCase() == resKey) {
-                final vUrl = (item['video_info']?['url'] ?? '').toString().trim();
-                if (vUrl.isNotEmpty) {
-                  transcodeVariants.add(
-                    CmsEpisode(
-                      name: labels[resKey] ?? resKey.toUpperCase(),
-                      url: vUrl,
-                      headers: playHeaders,
-                    ),
-                  );
-                }
-              }
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 5. Fetch 4K original MKV stream (`file/download` + social token fallback)
-      String originalUrl = '';
-      if (mode == 'original') {
-        originalUrl = await _fetchQuarkSocialDownloadUrl(client, cookie, savedFid);
-      }
-      if (originalUrl.isEmpty) {
-        try {
-          final dlResp = await _quarkHttpJson(
-            client,
-            'POST',
-            Uri.parse('https://drive-pc.quark.cn/1/clouddrive/file/download?pr=ucpro&fr=pc'),
-            cookie: cookie,
-            body: {
-              'fids': [savedFid],
-            },
-          );
-          final dlList = dlResp?['data'];
-          if (dlList is List && dlList.isNotEmpty && dlList.first is Map) {
-            originalUrl = (dlList.first['download_url'] ?? '').toString().trim();
-          }
-        } catch (_) {}
-      }
-      if (originalUrl.isEmpty && mode != 'original') {
-        originalUrl = await _fetchQuarkSocialDownloadUrl(client, cookie, savedFid);
-      }
-
-      final variants = <CmsEpisode>[];
-      if (mode == 'original') {
-        if (originalUrl.isNotEmpty) {
-          variants.add(CmsEpisode(name: '4K原画', url: originalUrl, headers: playHeaders));
-        }
-        variants.addAll(transcodeVariants);
-      } else {
-        variants.addAll(transcodeVariants);
-        if (originalUrl.isNotEmpty) {
-          variants.add(CmsEpisode(name: '4K原画', url: originalUrl, headers: playHeaders));
-        }
-      }
-
-      if (variants.isNotEmpty) {
-        return CmsEpisode(
-          name: episode.name,
-          url: variants.first.url,
-          headers: playHeaders,
-          variants: variants,
-        );
-      }
-    } catch (_) {
-      if (fallbackUrl.isNotEmpty) {
-        return CmsEpisode(name: episode.name, url: fallbackUrl);
-      }
-      rethrow;
-    } finally {
-      client.close(force: true);
-    }
-
-    if (fallbackUrl.isNotEmpty) {
-      return CmsEpisode(name: episode.name, url: fallbackUrl);
-    }
-    throw const FormatException('未能解析出可用的夸克 4K 播放地址');
-  }
-
-  static Future<List<CmsLine>> resolveCrossSourceLines(
-    String title,
-    CspHttpTextFetcher fetchText, {
-    Set<String> excludeLineNames = const {},
-  }) async {
-    final trimmed = title.trim();
-    if (trimmed.isEmpty) return const [];
-    final cleanTitle = trimmed
-        .replaceAll(RegExp(r'[\(（\[【].*?[\)）\]】]'), '')
-        .trim();
-    final strippedYear = cleanTitle.length > 4
-        ? cleanTitle.replaceFirst(RegExp(r'(?:19|20)\d{2}版?$'), '').trim()
-        : cleanTitle;
-    final query = strippedYear.isNotEmpty ? strippedYear : trimmed;
-    final normTarget = _normalizeTitleForMatch(trimmed);
-    final extra = <CmsLine>[];
-    final seenNames = <String>{...excludeLineNames};
-    final futures = vodPool.take(6).map((backend) async {
-      try {
-        final uri = Uri.parse(backend.api).replace(
-          queryParameters: {'ac': 'detail', 'wd': query, 'pg': '1'},
-        );
-        final raw = await fetchText(
-          uri.toString(),
-          requestTimeout: const Duration(seconds: 6),
-        );
-        final listing = CmsParser.parseListing(raw);
-        return (backend.name, listing.videos);
-      } catch (_) {
-        return (backend.name, const <CmsVideo>[]);
-      }
+    indexed.sort((a, b) {
+      final cmp = b.$2.compareTo(a.$2);
+      return cmp != 0 ? cmp : a.$1.compareTo(b.$1);
     });
-    final results = await Future.wait(futures);
-    for (final (backendName, videos) in results) {
-      for (final v in videos) {
-        if (v.title.trim() == trimmed ||
-            _normalizeTitleForMatch(v.title) == normTarget) {
-          for (final l in v.lines) {
-            final friendly = CmsParser.friendlyLineName(l.name);
-            final playable = l.episodes
-                .where((e) => e.isDirectPlayable && !isDeadOrStubStreamUrl(e.url))
-                .toList(growable: false);
-            if (playable.isNotEmpty) {
-              final lineLabel = seenNames.add(friendly)
-                  ? friendly
-                  : (seenNames.add(backendName) ? backendName : '');
-              if (lineLabel.isNotEmpty) {
-                extra.add(CmsLine(name: lineLabel, episodes: playable));
-              }
-            }
-          }
-          break;
-        }
-      }
-    }
-    return extra;
+    return [for (final item in indexed) item.$3];
   }
-}
 
-class _QuarkShareEpisodeItem {
-  final String shareId;
-  final String stoken;
-  final String fid;
-  final String fidToken;
-  final String fileName;
-  final int size;
-  final String displayName;
+  /// Ranks available lines while preserving their actual source and quality labels.
+  /// The legacy method name is retained for existing callers.
+  static List<CmsLine> buildNetdisk4KLines(
+    List<CmsLine> directLines, {
+    String siteHint = '',
+    Set<String> excludeNames = const {},
+  }) {
+    return _prioritizeDirectLinesFor4K(directLines)
+        .where((line) => line.episodes.isNotEmpty && !excludeNames.contains(line.name))
+        .toList(growable: false);
+  }
 
-  const _QuarkShareEpisodeItem({
-    required this.shareId,
-    required this.stoken,
-    required this.fid,
-    required this.fidToken,
-    required this.fileName,
-    required this.size,
-    required this.displayName,
-  });
 }

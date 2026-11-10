@@ -65,40 +65,40 @@ void main() {
       'Authorization': 'CDN fixture', 'Cookie': 'cdn=fixture'});
     expect(explicit.start, const Duration(seconds: 12));
   });
-  test('cross-source results preserve real providers and episode names', () async {
-    const original = CmsVideo(id: 'one', title: 'Fixture', lines: [
-      CmsLine(name: '真实来源', episodes: [CmsEpisode(name: '第08集', url: 'https://media.test/e8.mp4')]),
-    ]);
-    final resolved = await CspBridge.resolveCrossSourceVideo(original, 'Fixture',
-      (String url, {Map<String, String> headers = const {}, Duration? requestTimeout}) async => throw StateError('unexpected request'));
+  test('configured detail preserves real providers without cross-source requests', () async {
+    const original = CmsVideo(id: 'one', title: 'Fixture');
+    const site = CmsSite(key: 'fixture', name: 'Fixture', type: 3,
+        api: 'csp_Portable', ext: 'https://source.test/vod');
+    final requests = <Uri>[];
+    final resolved = await CspBridge.fetchDetail(site, original,
+      (String url, {Map<String, String> headers = const {}, Duration? requestTimeout}) async {
+        requests.add(Uri.parse(url));
+        return r'{"list":[{"vod_id":"one","vod_name":"Fixture","vod_play_from":"真实来源","vod_play_url":"第08集$https://media.test/e8.mp4"}]}';
+      });
+    expect(requests, hasLength(1));
+    expect(requests.single.host, 'source.test');
     expect(resolved.lines.length, 1);
     expect(resolved.lines.single.name, '真实来源');
     expect(resolved.lines.single.episodes.single.name, '第08集');
-    expect(resolved.lines.single.episodes.single.url, original.lines.single.episodes.single.url);
+    expect(resolved.lines.single.episodes.single.url, 'https://media.test/e8.mp4');
   });
-  test('cross-source netdisk lines prioritize healthy streams over dead CDN hosts', () async {
-    const original = CmsVideo(id: 'one', title: '斗罗大陆2：绝世唐门2023', lines: [
-      CmsLine(name: 'zuidam3u8', episodes: [
-        CmsEpisode(name: '第01集', url: 'https://cdn-a.test/20261106/ep1/index.m3u8'),
-        CmsEpisode(name: '第02集', url: 'https://cdn-a.test/20261106/ep2/index.m3u8'),
+  test('failed imported detail never substitutes cached or pooled lines', () async {
+    const site = CmsSite(key: 'original', name: 'Original', type: 3,
+        api: 'csp_Portable', ext: 'https://original.invalid/vod');
+    const cached = CmsVideo(id: 'one', title: 'Fixture', lines: [
+      CmsLine(name: 'Old unrelated line', episodes: [
+        CmsEpisode(name: '1', url: 'https://foreign.invalid/one.mp4'),
       ]),
     ]);
-    final firstPoolOrigin = Uri.parse(CspBridge.vodPool.first.api).host;
-    final resolved = await CspBridge.resolveCrossSourceVideo(
-      original,
-      '斗罗大陆2：绝世唐门2023',
-      (String url, {Map<String, String> headers = const {}, Duration? requestTimeout}) async {
-        if (url.contains(firstPoolOrigin)) {
-          return '{"code":1,"list":[{"vod_id":1,"vod_name":"斗罗大陆2：绝世唐门","vod_play_from":"ikm3u8","vod_play_url":"第01集\$https://cdn-b.test/ep1/index.m3u8#第02集\$https://cdn-b.test/ep2/index.m3u8"}]}';
-        }
-        return '{"code":1,"list":[]}';
-      },
-      siteHint: '玩偶哥哥┃4K弹幕',
-    );
-    expect(resolved.lines.first.name, '夸父智1');
-    expect(resolved.lines.first.episodes.first.url, 'https://cdn-a.test/20261106/ep1/index.m3u8');
-    expect(resolved.lines[1].name, '夸父无限1');
-    expect(resolved.lines[1].episodes.first.url, 'https://cdn-b.test/ep1/index.m3u8');
+    final requests = <Uri>[];
+    final result = await CspBridge.fetchDetail(site, cached,
+        (url, {headers = const {}, requestTimeout}) async {
+      requests.add(Uri.parse(url));
+      return '{"list":[]}';
+    });
+    expect(result.lines, isEmpty);
+    expect(requests, hasLength(1));
+    expect(requests.single.host, 'original.invalid');
   });
   test('HTML plugin website is not advertised as a JSON source adapter', () {
     const site = CmsSite(key: 'html', name: 'HTML', type: 3, api: 'csp_SixVGuard', ext: 'https://example.test/');

@@ -55,7 +55,7 @@ void main() {
 
   test('catalogue matching preserves source ownership and rejects wrong year and private sources', () async {
     final config = CmsParser.parseConfig('{"sites":['
-        '{"key":"catalog","name":"Catalog","type":1,"api":"https://catalog.example/api"},'
+        '{"key":"catalog","name":"Catalog","type":3,"api":"csp_DouDou"},'
         '{"key":"wrong","name":"Wrong year","type":1,"api":"https://wrong.example/api"},'
         '{"key":"match","name":"Match","type":1,"api":"https://match.example/api","header":{"Referer":"https://match.example"}},'
         '{"key":"private","name":"Private","type":1,"api":"https://private.example/api","isPrivate":true}]}');

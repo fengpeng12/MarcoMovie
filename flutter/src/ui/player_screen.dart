@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../core/cms_client.dart';
 import '../core/emby_library.dart';
 import '../core/csp_bridge.dart';
+import '../core/cloud_media_proxy.dart';
 import '../core/models.dart';
 import '../core/storage_service.dart';
 import 'apple_theme.dart';
@@ -51,6 +52,36 @@ class PlayerScreen extends StatefulWidget {
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
+}
+
+/// Owns the active file's temporary HTTP transport independently of the UI.
+/// Media must stop before [releaseUnless]; [discard] handles late resolutions.
+class PlayerCloudMediaSession {
+  CloudMediaLease? _current;
+  CloudMediaLease? get current => _current;
+
+  static CloudMediaLease? of(CmsEpisode episode) {
+    final value = episode.playbackSession['cloudMediaLease'];
+    return value is CloudMediaLease ? value : null;
+  }
+
+  bool owns(CloudMediaLease? lease) => lease != null && identical(lease, _current);
+
+  void adopt(CloudMediaLease? lease) => _current = lease;
+
+  CloudMediaLease? detach() {
+    final previous = _current;
+    _current = null;
+    return previous;
+  }
+
+  Future<void> releaseUnless(CloudMediaLease? keep) async {
+    if (!owns(keep)) await detach()?.close();
+  }
+
+  Future<void> discard(CloudMediaLease? lease) async {
+    if (lease != null && !owns(lease)) await lease.close();
+  }
 }
 
 class _PlayerScreenState extends State<PlayerScreen>
@@ -98,6 +129,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   bool _isSliderDragging = false;
   double _sliderDragPosMs = 0;
   int _playSession = 0;
+  Completer<void>? _sourceAbort;
+  final _cloudMedia = PlayerCloudMediaSession();
   int _pendingResumeMs = 0;
   int _lastKnownPositionMs = 0;
   int _lastKnownDurationMs = 0;
@@ -403,9 +436,6 @@ class _PlayerScreenState extends State<PlayerScreen>
             candidateEp.url == _currentEpisode.url) {
           continue;
         }
-        if (pass == 0 && CspBridge.isDeadOrStubStreamUrl(candidateEp.url)) {
-          continue;
-        }
         chosenIdx = candidateIdx;
         break;
       }
@@ -431,7 +461,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     if (!mounted) return;
     _embySession?.stop(_position.inMilliseconds);
     _embySession = null;
-    if (!CmsClient.needsSourceVerification(widget.site, error) &&
+    final cloudError = CmsClient.cloudPlaybackError(_currentEpisode, error);
+    if (cloudError.isEmpty && !CmsClient.needsSourceVerification(widget.site, error) &&
         _tryAutoSwitchLine(reason: '当前线路不可用')) {
       return;
     }
@@ -442,7 +473,8 @@ class _PlayerScreenState extends State<PlayerScreen>
       _buffering = false;
       _playing = false;
       _controlsVisible = true;
-      _playbackError = '播放失败，请重试或切换线路';
+      _playbackError = cloudError.isEmpty
+          ? '播放失败，请重试或切换线路' : cloudError;
       _playbackErrorCause = error;
       if (CmsClient.needsSourceVerification(widget.site, error)) {
         _playbackError = '此片源需要完成验证码后继续播放';
@@ -460,6 +492,14 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   Future<void> _openCurrentEpisode({int? resumeMs, CmsEpisode? quality}) async {
+    final qualityLease = quality == null ? null : PlayerCloudMediaSession.of(quality);
+    final keepsLease = _cloudMedia.owns(qualityLease);
+    // Quality variants of one cloud file share their proxy and cancellation
+    // owner. Cancelling that owner here would revoke the next quality as well.
+    if (!keepsLease && _sourceAbort?.isCompleted == false) _sourceAbort!.complete();
+    final sourceAbort = keepsLease && _sourceAbort != null
+        ? _sourceAbort!
+        : (_sourceAbort = Completer<void>());
     final session = ++_playSession;
     if (quality == null) _qualityChoices = const [];
     _embySession?.stop(_position.inMilliseconds);
@@ -469,7 +509,10 @@ class _PlayerScreenState extends State<PlayerScreen>
     _playbackError = '';
     _playbackErrorCause = null;
     try {
-      await _changeMedia(session, () => _player.stop());
+      await _changeMedia(session, () async {
+        await _player.stop();
+        await _cloudMedia.releaseUnless(qualityLease);
+      });
     } catch (_) {
       if (session == _playSession) _failPlayback();
       return;
@@ -516,15 +559,24 @@ class _PlayerScreenState extends State<PlayerScreen>
       });
     }
 
+    CloudMediaLease? pendingLease;
     try {
       var resolvedEpisode = quality ?? (_currentEpisode.isLocalFile
           ? _currentEpisode
           : widget.isLive
           ? _client.resolveLiveEpisodeForPlayback(widget.site, _currentEpisode)
-          : await _client.resolveEpisodeForPlayback(
-              widget.site,
-              _currentEpisode,
+          : await _client.runSourceOperation<CmsEpisode>(
+              () async {
+                final result = await _client.resolveEpisodeForPlayback(widget.site, _currentEpisode);
+                if (!mounted || session != _playSession || sourceAbort.isCompleted) {
+                  await _cloudMedia.discard(PlayerCloudMediaSession.of(result));
+                  throw StateError('片源加载已取消');
+                }
+                return result;
+              },
+              cancellation: sourceAbort,
             ));
+      pendingLease = PlayerCloudMediaSession.of(resolvedEpisode);
       if (quality == null &&
           resolvedEpisode.variants.length > 1 &&
           widget.storage.preferredQuality == '4k_netdisk') {
@@ -551,6 +603,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       }
       if (!mounted || session != _playSession) {
         report?.stop();
+        await _cloudMedia.discard(pendingLease);
         return;
       }
       _embySession = report;
@@ -565,6 +618,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       _activeMediaUri = Media(safePlayUrl).uri;
 
       await _changeMedia(session, () async {
+        _cloudMedia.adopt(pendingLease);
         _allowEvents = true;
         final baseMedia = widget.mediaForPlayback(
           resolvedEpisode,
@@ -609,12 +663,16 @@ class _PlayerScreenState extends State<PlayerScreen>
           await _player.setAudioTrack(AudioTrack.uri(resolvedEpisode.externalAudioUrl));
         }
       });
-      if (!mounted || session != _playSession || !_allowEvents) return;
+      if (!mounted || session != _playSession || !_allowEvents) {
+        await _cloudMedia.discard(pendingLease);
+        return;
+      }
       _allowHistory = true;
       await _player.setRate(_normalSpeed);
       if (!mounted || session != _playSession) return;
       _scheduleHide();
     } catch (error) {
+      await _cloudMedia.discard(pendingLease);
       if (mounted && session == _playSession) _failPlayback(error);
     }
   }
@@ -924,6 +982,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   @override
   void dispose() {
+    if (_sourceAbort?.isCompleted == false) _sourceAbort!.complete();
     WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
     _historyTimer?.cancel();
@@ -940,8 +999,12 @@ class _PlayerScreenState extends State<PlayerScreen>
     });
     final releaseSource = _releaseSourceSession;
     _releaseSourceSession = null;
+    final cloudLease = _cloudMedia.detach();
     _mediaChanges.whenComplete(() async {
-      try { await _player.dispose(); } finally { releaseSource?.call(); }
+      try { await _player.dispose(); } finally {
+        await cloudLease?.close();
+        releaseSource?.call();
+      }
     });
     super.dispose();
   }

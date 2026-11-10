@@ -1796,7 +1796,11 @@ class CmsParser {
           actor: (item['vod_actor'] ?? '').toString().trim(),
           description: _cleanHtml((item['vod_content'] ?? '').toString()),
           tag: (item['vod_tag'] ?? '').toString().trim(),
-          lines: _parseLines(
+          sourceWarnings: item['wogg_share_errors'] is List
+              ? (item['wogg_share_errors'] as List).whereType<Map>()
+                  .map((error) => '${error['line'] ?? '网盘线路'}：${error['message'] ?? '读取失败'}').toList()
+              : const [],
+          lines: item['lines'] is List ? _structuredLines(item['lines'] as List) : _parseLines(
             playFrom,
             playUrl,
           ),
@@ -1809,6 +1813,20 @@ class CmsParser {
       videos: videos,
     );
   }
+  static List<CmsLine> _structuredLines(List values) => [
+    for (final line in values.whereType<Map>())
+      if (line['episodes'] is List)
+        CmsLine(name: (line['name'] ?? '').toString(), episodes: [
+          for (final episode in (line['episodes'] as List).whereType<Map>())
+            if ((episode['url'] ?? '').toString().isNotEmpty)
+              CmsEpisode(name: (episode['name'] ?? '').toString(),
+                url: episode['url'].toString(),
+                headers: episode['headers'] is Map
+                    ? (episode['headers'] as Map).map((k, v) => MapEntry(k.toString(), v.toString()))
+                    : const {}),
+        ]),
+  ];
+
   static bool isBrokenPosterUrl(String url) {
     final lower = url.trim().toLowerCase();
     if (lower.isEmpty) return true;

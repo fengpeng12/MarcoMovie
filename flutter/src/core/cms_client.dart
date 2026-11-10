@@ -16,6 +16,9 @@ import 'checksum_source.dart';
 import 'catpaw_host.dart';
 import 'drpy_source.dart';
 import 'guard_source.dart';
+import 'wogg_source.dart';
+import 'cloud_share.dart';
+import 'ali_share.dart';
 import 'source_playback.dart';
 import 'source_verification.dart';
 import 'models.dart';
@@ -30,6 +33,7 @@ class CmsClient {
   static const String safariUserAgent =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.15';
   static final Object _cancelKey = Object();
+  static final Object _lifetimeCancelKey = Object();
 
   /// Bind a screen-owned operation to its actual CMS/script requests. Leaving
   /// the screen stops the UI wait and cancels supported I/O; a late result is
@@ -38,6 +42,7 @@ class CmsClient {
       {required Completer<void> cancellation}) async {
     if (cancellation.isCompleted) throw StateError('片源加载已取消');
     final parent = Zone.current[_cancelKey] as Completer<void>?;
+    final parentLifetime = Zone.current[_lifetimeCancelKey] as bool Function()?;
     if (parent?.isCompleted == true) throw StateError('片源加载已取消');
     final abort = Completer<void>();
     final interrupted = Completer<T>();
@@ -54,7 +59,8 @@ class CmsClient {
       // Register the error observer before beginning an operation which may
       // synchronously cancel itself or fail to create its backend.
       final work = Future<T>.sync(() => runZoned(operation,
-          zoneValues: {_cancelKey: abort}));
+          zoneValues: {_cancelKey: abort, _lifetimeCancelKey: () =>
+              cancellation.isCompleted || parent?.isCompleted == true || parentLifetime?.call() == true}));
       final value = await Future.any([work, interrupted.future]);
       if (abort.isCompleted || cancellation.isCompleted || parent?.isCompleted == true) {
         throw StateError('片源加载已取消');
@@ -76,6 +82,55 @@ class CmsClient {
       read: (url, headers) => _getText(url, headers: headers));
   late final GuardSource _guard = GuardSource(host: _scriptHost, drpy: _drpy,
       read: (url, headers) => _getBytes(url, headers: headers, byteLimit: GuardSource.maxArtifactBytes));
+  late final WoggSource _wogg = WoggSource(
+      read: (url, headers) => _getText(url, headers: headers),
+      readBytes: (url, headers) => _getBytes(url, headers: headers,
+          byteLimit: GuardSource.maxArtifactBytes),
+      listShare: _listCloudShare,
+      listShareWithCancellation: (url, cancel) =>
+          runSourceOperation(() => _listCloudShare(url), cancellation: cancel));
+
+  bool Function() get _sourceCancelled {
+    final abort = Zone.current[_cancelKey] as Completer<void>?;
+    final lifetime = Zone.current[_lifetimeCancelKey] as bool Function()?;
+    return () => abort?.isCompleted == true || lifetime?.call() == true;
+  }
+
+  static String cloudPlaybackError(CmsEpisode episode, Object? error) {
+    if (episode.cloudProvider == null) return '';
+    final message = switch (error) {
+      AliShareException e => e.message,
+      QuarkDriveException e => e.message,
+      FormatException e => e.message,
+      _ => '',
+    };
+    if (message.isEmpty || message.length > 200 ||
+        RegExp(r'https?://|BDUSS|STOKEN|__pu|cookie|authorization', caseSensitive: false).hasMatch(message)) return '';
+    return message;
+  }
+
+  Future<String> _cloudCredential(String provider) async =>
+      (await StorageService.init()).netdiskCredential(provider);
+
+  Future<List<CmsEpisode>> _listCloudShare(String url) async {
+    if (CloudShareClient.supportsShare(url)) {
+      final cloud = CloudShareClient(client: _http, credentialReader: _cloudCredential, isCancelled: _sourceCancelled);
+      try { return await cloud.listShare(url); } finally { cloud.close(); }
+    }
+    if (AliShareClient.supportsShare(url)) {
+      final cloud = AliShareClient(client: _http, credentialReader: _cloudCredential, isCancelled: _sourceCancelled,
+          credentialWriter: (provider, value) async =>
+              (await StorageService.init()).setNetdiskCredential(provider, value));
+      try { return await cloud.listShare(url); } finally { cloud.close(); }
+    }
+    final uri = Uri.tryParse(url);
+    if (uri?.host.toLowerCase() == 'pan.quark.cn' &&
+        const {'http', 'https'}.contains(uri?.scheme) && uri!.userInfo.isEmpty) {
+      return QuarkDriveClient.listPublicShareEpisodes(url, httpClient: _http, isCancelled: _sourceCancelled);
+    }
+    throw const FormatException('此分享的网盘暂不支持');
+  }
+
   CmsClient({
     http.Client? client,
     CatPawHost? scriptHost,
@@ -744,7 +799,7 @@ class CmsClient {
     return '';
   }
 
-  bool _usesJs(CmsSite site) => GuardSource.supports(site) || site.isDrpySource || site.isPythonSource || (site.isJavaScriptSource || site.isRemoteScriptSource) &&
+  bool _usesJs(CmsSite site) => WoggSource.supports(site) || GuardSource.supports(site) || site.isDrpySource || site.isPythonSource || (site.isJavaScriptSource || site.isRemoteScriptSource) &&
       !(CspBridge.isHuyaSite(site) || CspBridge.isDouyuSite(site) ||
         CspBridge.isTuxiaobeiSite(site) || CspBridge.isMyDriveSite(site));
 
@@ -771,17 +826,10 @@ class CmsClient {
       canVerifySource(site) && error is DrpySourceException &&
       error.code == 'drpy_verification_required';
 
-  bool _canFallbackToCspBridge(CmsSite site, [Object? error]) {
-    if (error != null && needsSourceVerification(site, error)) return false;
-    if (!GuardSource.supports(site)) return false;
-    final ref = site.pluginReference.toLowerCase();
-    if (ref.isEmpty ||
-        ref.contains('.invalid') ||
-        ref.contains('.test') ||
-        ref.contains('.example')) {
-      return false;
+  void _requireSourceAdapter(CmsSite site) {
+    if (site.isScriptOrJarApi && !site.canBrowse) {
+      throw FormatException(site.unsupportedReason);
     }
-    return true;
   }
 
   Future<Map<String, dynamic>> sourceVerificationAction(
@@ -818,6 +866,7 @@ class CmsClient {
   Future<String> _callJs(CmsSite site, String method, List<Object?> args) async {
     final cancellation = Zone.current[_cancelKey] as Completer<void>?;
     final generation = JsSourceHost.generation;
+    if (WoggSource.supports(site)) return _wogg.invoke(site, method, args, cancellation: cancellation);
     if (GuardSource.supports(site)) return _guard.invoke(site, method, args, cancellation: cancellation);
     if (site.isDrpySource) return _drpy.invoke(site, method, args, cancellation: cancellation);
     final cachedRule = await _drpy.callCached(site, method, args, cancellation: cancellation);
@@ -996,13 +1045,8 @@ class CmsClient {
 
   String _detailAction(CmsSite site) => site.type == 0 ? 'videolist' : 'detail';
 
-  bool _hasFastCspFallback(CmsSite site) {
-    if (!_canFallbackToCspBridge(site)) return false;
-    final ref = '${site.api} ${site.ext} ${site.pluginReference}'.toLowerCase();
-    return !ref.contains('127.0.0.1') && !ref.contains('localhost');
-  }
-
   Future<(List<CmsCategory>, CmsListing)> fetchHome(CmsSite site) async {
+    _requireSourceAdapter(site);
     if (_isHttpT4(site)) {
       final raw = await _callT4(site, {'filter': 'true'});
       final categories = CmsParser.parseCategories(raw);
@@ -1021,33 +1065,19 @@ class CmsClient {
     }
     if (site.isEmby) return (await EmbyLibrary.open(site)).home();
     if (_usesJs(site)) {
-      try {
-        final homeCall = _callJs(site, 'home', [false]);
-        final raw = await (_hasFastCspFallback(site)
-            ? homeCall.timeout(const Duration(seconds: 6))
-            : homeCall);
-        final categories = CmsParser.parseCategories(raw);
-        var listing = CmsParser.parseListing(raw);
-        if (listing.videos.isEmpty) {
-          try {
-            final vodCall = _callJs(site, 'homeVod', []);
-            listing = CmsParser.parseListing(await (_hasFastCspFallback(site)
-                ? vodCall.timeout(const Duration(seconds: 6))
-                : vodCall));
-          } catch (error) {
-            if (categories.isEmpty || needsSourceVerification(site, error)) rethrow;
-          }
-          if (listing.videos.isEmpty && categories.isNotEmpty) {
-            listing = await fetchCategory(site, categories.first.id, 1);
-          }
+      final raw = await _callJs(site, 'home', [false]);
+      final categories = CmsParser.parseCategories(raw);
+      var listing = CmsParser.parseListing(raw);
+      if (listing.videos.isEmpty) {
+        try { listing = CmsParser.parseListing(await _callJs(site, 'homeVod', [])); }
+        catch (error) {
+          if (categories.isEmpty || needsSourceVerification(site, error)) rethrow;
         }
-        if (categories.isNotEmpty || listing.videos.isNotEmpty || !_canFallbackToCspBridge(site)) {
-          return (categories, listing);
+        if (listing.videos.isEmpty && categories.isNotEmpty) {
+          listing = await fetchCategory(site, categories.first.id, 1);
         }
-      } catch (error) {
-        if (!_canFallbackToCspBridge(site, error)) rethrow;
       }
-      return CspBridge.fetchHome(site, _getText);
+      return (categories, listing);
     }
     if (site.isM3uVodApi) {
       final content = await _resolveM3uVodPayload(site);
@@ -1098,6 +1128,7 @@ class CmsClient {
     List<String> childIds = const [],
     CmsFilter? filter,
   }) async {
+    _requireSourceAdapter(site);
     if (_isHttpT4(site)) {
       final filters = <String, String>{
         if (filter != null && filter.genreLabel.isNotEmpty && filter.genreLabel != '全部') 'class': filter.genreLabel,
@@ -1112,26 +1143,17 @@ class CmsClient {
     }
     if (site.isEmby) return (await EmbyLibrary.open(site)).list(categoryId, '', page);
     if (_usesJs(site)) {
+      final wogg = WoggSource.supports(site);
       final extend = <String, String>{
-        if (filter != null && filter.genreLabel.isNotEmpty) 'class': filter.genreLabel,
+        if (filter != null && filter.genreLabel.isNotEmpty && filter.genreLabel != '全部') (wogg ? '3' : 'class'): filter.genreLabel,
         if (GuardSource.supports(site) && filter != null && filter.genreLabel.isNotEmpty) 'type': filter.genreLabel,
-        if (filter != null && filter.area.isNotEmpty) 'area': filter.area,
-        if (filter != null && filter.year.isNotEmpty) 'year': filter.year,
+        if (filter != null && filter.area.isNotEmpty && filter.area != '全部') (wogg ? '1' : 'area'): filter.area,
+        if (filter != null && filter.year.isNotEmpty && filter.year != '全部') (wogg ? '11' : 'year'): filter.year,
       };
-      try {
-        final catCall = _callJs(site, 'category', [categoryId, page, extend.isNotEmpty, extend]);
-        final listing = CmsParser.parseListing(await (_hasFastCspFallback(site)
-            ? catCall.timeout(const Duration(seconds: 6))
-            : catCall));
-        if (listing.videos.isNotEmpty || !_canFallbackToCspBridge(site)) {
-          if (filter == null || !filter.hasSubFilter || extend.isEmpty) return listing;
-          return CmsListing(page: listing.page, pageCount: listing.pageCount,
-              videos: listing.videos, sourceFiltered: true);
-        }
-      } catch (error) {
-        if (!_canFallbackToCspBridge(site, error)) rethrow;
-      }
-      return CspBridge.fetchCategory(site, categoryId, page, _getText, childIds: childIds);
+      final listing = CmsParser.parseListing(await _callJs(site, 'category', [categoryId, page, extend.isNotEmpty, extend]));
+      if (filter == null || !filter.hasSubFilter || extend.isEmpty) return listing;
+      return CmsListing(page: listing.page, pageCount: listing.pageCount,
+          videos: listing.videos, sourceFiltered: true);
     }
     if (site.isM3uVodApi) {
       final content = await _resolveM3uVodPayload(site);
@@ -1221,22 +1243,14 @@ class CmsClient {
     String keyword, {
     int page = 1,
   }) async {
+    _requireSourceAdapter(site);
     if (_isHttpT4(site)) {
       final raw = await _callT4(site, {'wd': keyword.trim(), 'quick': 'false', 'pg': '$page'});
       return CmsParser.parseListing(_wrapJsEpisodeIds(raw, scheme: 'mmt4'));
     }
     if (site.isEmby) return (await EmbyLibrary.open(site)).list('', keyword, page);
     if (_usesJs(site)) {
-      try {
-        final searchCall = _callJs(site, 'search', [keyword, false, page]);
-        final listing = CmsParser.parseListing(await (_hasFastCspFallback(site)
-            ? searchCall.timeout(const Duration(seconds: 4))
-            : searchCall));
-        if (listing.videos.isNotEmpty || !_canFallbackToCspBridge(site)) return listing;
-      } catch (error) {
-        if (!_canFallbackToCspBridge(site, error)) rethrow;
-      }
-      return CspBridge.fetchSearch(site, keyword, page, _getText);
+      return CmsParser.parseListing(await _callJs(site, 'search', [keyword, false, page]));
     }
     if (site.isM3uVodApi) {
       final content = await _resolveM3uVodPayload(site);
@@ -1271,7 +1285,10 @@ class CmsClient {
   ) async {
     final detail = await fetchDetail(source, item);
     if (detail.lines.any((l) => l.episodes.isNotEmpty)) return (source, detail);
-    final title = detail.title.trim();
+    if (!CspBridge.isDoubanSite(source)) {
+      return (source, detail);
+    }
+    final title = CspBridge.searchTitleForVideo(detail);
     if (title.isEmpty) return (source, detail);
     String normTitleOf(String raw) =>
         raw.trim().toLowerCase().replaceAll(RegExp(r'[\s·:：,，.。!！?？\-_—()（）\[\]【】《》]+'), '');
@@ -1335,6 +1352,7 @@ class CmsClient {
   }
 
   Future<CmsVideo> fetchDetail(CmsSite site, CmsVideo fallback) async {
+    _requireSourceAdapter(site);
     if (fallback.id.startsWith('mmquark://owned?')) {
       return _mergeDetail(CmsVideo(id: fallback.id, title: fallback.title,
           lines: [CmsLine(name: '夸克网盘', episodes: [
@@ -1354,22 +1372,13 @@ class CmsClient {
     }
     if (site.isEmby) return (await EmbyLibrary.open(site)).detail(fallback.id);
     if (_usesJs(site)) {
-      try {
-        final detailCall = _callJs(site, 'detail', [fallback.id]);
-        final raw = await (_hasFastCspFallback(site)
-            ? detailCall.timeout(const Duration(seconds: 6))
-            : detailCall);
-        final listing = CmsParser.parseListing(_wrapJsEpisodeIds(raw));
-        if (listing.videos.isNotEmpty && listing.videos.first.lines.isNotEmpty) {
-          return _mergeDetail(listing.videos.first, fallback);
-        }
-        if (!_canFallbackToCspBridge(site)) {
-          return listing.videos.isEmpty ? fallback : _mergeDetail(listing.videos.first, fallback);
-        }
-      } catch (error) {
-        if (!_canFallbackToCspBridge(site, error)) rethrow;
-      }
-      return CspBridge.fetchDetail(site, fallback, _getText);
+      final raw = await _callJs(site, 'detail', [fallback.id]);
+      final listing = CmsParser.parseListing(WoggSource.supports(site) ? raw : _wrapJsEpisodeIds(raw));
+      // Old versions could cache a different provider under this source. Empty
+      // plugin responses must not revive those cached playback lines.
+      return _mergeDetail(listing.videos.isEmpty
+          ? CmsVideo(id: fallback.id, title: fallback.title)
+          : listing.videos.first, fallback);
     }
     if (site.isM3uVodApi) {
       return fallback;
@@ -1404,6 +1413,7 @@ class CmsClient {
     description: detailed.description.isEmpty ? fallback.description : detailed.description,
     tag: detailed.tag.isEmpty ? fallback.tag : detailed.tag,
     lines: detailed.lines,
+    sourceWarnings: detailed.sourceWarnings,
   );
   Uri? _sourceCredentialOrigin(CmsSite site) {
     if (site.isHttpApi) return Uri.tryParse(site.api);
@@ -1465,12 +1475,37 @@ class CmsClient {
     CmsSite site,
     CmsEpisode episode,
   ) async {
+    if (CloudShareClient.supportsEpisode(episode.url)) {
+      final cloud = CloudShareClient(client: _http, credentialReader: _cloudCredential, isCancelled: _sourceCancelled);
+      try { return await cloud.resolve(episode); } finally { cloud.close(); }
+    }
+    if (AliShareClient.supportsEpisode(episode.url)) {
+      final cloud = AliShareClient(client: _http, credentialReader: _cloudCredential, isCancelled: _sourceCancelled,
+          credentialWriter: (provider, value) async =>
+              (await StorageService.init()).setNetdiskCredential(provider, value));
+      try { return await cloud.resolve(episode); } finally { cloud.close(); }
+    }
     if (episode.url.startsWith('mmquark://')) {
       final drive = _quark ?? QuarkDriveClient(
-          accounts: (await StorageService.init()).quarkAccounts, httpClient: _http);
+          accounts: (await StorageService.init()).quarkAccounts, httpClient: _http, isCancelled: _sourceCancelled);
       try { return await drive.resolve(episode); }
       finally { if (_quark == null) drive.close(); }
     }
+    if (episode.url.startsWith('mmwogg://quark?')) {
+      final drive = _quark ?? QuarkDriveClient(
+          accounts: (await StorageService.init()).quarkAccounts, httpClient: _http, isCancelled: _sourceCancelled);
+      try { return await drive.resolveWoggShare(episode); }
+      finally { if (_quark == null) drive.close(); }
+    }
+    if (WoggSource.supports(site)) {
+      throw const FormatException('请刷新详情以读取原始网盘线路，旧缓存不能用于此源');
+    }
+    if (_usesJs(site) && !episode.isScriptEpisode) {
+      throw const FormatException('请刷新详情以读取原始插件线路，旧缓存不能用于此源');
+    }
+    // A verified Quark share has its own resolver. Ordinary cached HTTP lines
+    // still require the original source adapter and cannot masquerade as it.
+    _requireSourceAdapter(site);
     if (_isHttpT4(site) && episode.url.startsWith('mmt4://play?')) {
       final parameters = Uri.parse(episode.url).queryParameters;
       final raw = jsonDecode(await _callT4(site,

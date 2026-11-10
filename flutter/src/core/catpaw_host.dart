@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'quark_account.dart';
+import 'storage_service.dart';
 
 class GuardBootstrapException extends FormatException {
   final String code;
@@ -232,10 +233,13 @@ class CatPawHost {
   Future<void> _syncNetdiskConfig(Directory root) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final quarkRaw = (prefs.getString('mm_netdisk_cred_quark_v1') ?? '').trim();
-      final quarkCookie = QuarkAccountSession.tryParseCredential(quarkRaw)?.cookie ?? quarkRaw;
-      final ucCookie = (prefs.getString('mm_netdisk_cred_uc_v1') ?? '').trim();
-      final baiduCookie = (prefs.getString('mm_netdisk_cred_baidu_v1') ?? '').trim();
+      final storage = StorageService(prefs);
+      final quarkCookie = QuarkAccountSession.tryParseCredential(
+          storage.getNetdiskCred('quark'))?.cookie ?? '';
+      final ucCookie = storage.isNetdiskLoggedIn('uc')
+          ? storage.getNetdiskCred('uc') : '';
+      final baiduCookie = storage.isNetdiskLoggedIn('baidu')
+          ? storage.getNetdiskCred('baidu') : '';
       final cfgFile = File('${root.path}/wexfnwconfig.json');
       if (quarkCookie.isEmpty && ucCookie.isEmpty && baiduCookie.isEmpty && !await cfgFile.exists()) {
         return;

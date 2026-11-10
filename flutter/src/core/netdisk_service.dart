@@ -1,5 +1,7 @@
+import 'netdisk_session.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpDate;
 import 'package:http/http.dart' as http;
 import 'quark_account.dart';
 import 'storage_service.dart';
@@ -111,6 +113,35 @@ class NetdiskService {
   final http.Client _http;
   final bool _ownsClient;
   late final QuarkAccountProvider _quarkAccounts;
+  final Map<String, String> _cachedCloudTickets = <String, String>{};
+  final Map<String, String> _cachedQuarkTickets = <String, String>{};
+
+  /// Builds the official native App deep-link scheme (`qklink://` / `uclink://`)
+  /// so iOS "本机跳转授权" opens the login confirmation page directly inside
+  /// the Quark / UC App WebView (`inApp=true`) with `client_id` preserved,
+  /// avoiding Safari's redirect to `h5.sm.cn` which drops `client_id=532` and
+  /// triggers "登录请求已过期".
+  static String? buildNativeAppDeepLink(String driveKey, String qrContent) {
+    final trimmed = qrContent.trim();
+    if (trimmed.isEmpty) return null;
+    final parsed = Uri.tryParse(trimmed);
+    final token = parsed?.queryParameters['token'] ?? '';
+    final targetUrl = switch (driveKey) {
+      'quark' when token.isNotEmpty =>
+        'https://su.quark.cn/4_eMHBJ?uc_param_str=dsdnfrpfbivesscpgimibtbmnijblauputogpintnwktprchmt&token=${Uri.encodeQueryComponent(token)}&client_id=532&ssb=weblogin&uc_biz_str=S%3Acustom%7COPT%3ASAREA%400%7COPT%3AIMMERSIVE%401%7COPT%3ABACK_BTN_STYLE%400',
+      'uc' when token.isNotEmpty =>
+        'https://su.uc.cn/1_n0ZCv?uc_param_str=dsdnfrpfbivesscpgimibtbmnijblauputogpintnwktprchmt&token=${Uri.encodeQueryComponent(token)}&client_id=381&uc_biz_str=S%3Acustom%7CC%3Atitlebar_fix',
+      _ => trimmed,
+    };
+    final encoded = Uri.encodeComponent(targetUrl);
+    return switch (driveKey) {
+      'quark' =>
+        'qklink://www.uc.cn/656bdcddd4758b39206a8181c91a7d14?src_pkg=kuake&src_ch=default&action=open_url&url=$encoded',
+      'uc' =>
+        'uclink://www.uc.cn/f11f7cb5d16fa0969d670c1eccc6053d?src_pkg=kuake&src_ch=default&action=open_url&url=$encoded',
+      _ => null,
+    };
+  }
 
   NetdiskService({http.Client? httpClient, QuarkAccountProvider? quarkAccounts})
       : _http = httpClient ?? http.Client(), _ownsClient = httpClient == null {
@@ -155,15 +186,9 @@ class NetdiskService {
         final members = data['members'] as Map? ?? const {};
         final token = members['token'];
         if (token is String && _validQuarkToken(token)) {
-          final qrContent = Uri.https('su.quark.cn', '/4_eMHBJ', {
-            'token': token,
-            'client_id': '532',
-            'ssb': 'weblogin',
-            'uc_param_str':
-                'dsdnfrpfbivesscpgimibtbmnijblauputogpintnwktprchmt',
-            'uc_biz_str':
-                'S:custom|OPT:SAREA@0|OPT:IMMERSIVE@1|OPT:BACK_BTN_STYLE@0',
-          }).toString();
+          _cachedQuarkTickets.remove(token);
+          final qrContent =
+              'https://su.quark.cn/4_eMHBJ?uc_param_str=dsdnfrpfbivesscpgimibtbmnijblauputogpintnwktprchmt&token=${Uri.encodeQueryComponent(token)}&client_id=532&ssb=weblogin&uc_biz_str=S%3Acustom%7COPT%3ASAREA%400%7COPT%3AIMMERSIVE%401%7COPT%3ABACK_BTN_STYLE%400';
           return NetdiskQrSession(
             driveKey: driveKey,
             qrContentUrl: qrContent,
@@ -185,7 +210,7 @@ class NetdiskService {
         final token = (members['token'] ?? '').toString();
         if (token.isNotEmpty) {
           final qrContent =
-              'https://su.uc.cn/1_n0ZCv?uc_param_str=dsdnfrpfbivesscpgimibtbmnijblauputogpintnwktprchmt&token=$token&client_id=381&uc_biz_str=S%3Acustom%7CC%3Atitlebar_fix';
+              'https://su.uc.cn/1_n0ZCv?uc_param_str=dsdnfrpfbivesscpgimibtbmnijblauputogpintnwktprchmt&token=${Uri.encodeQueryComponent(token)}&client_id=381&uc_biz_str=S%3Acustom%7CC%3Atitlebar_fix';
           return NetdiskQrSession(
             driveKey: driveKey,
             qrContentUrl: qrContent,
@@ -204,11 +229,24 @@ class NetdiskService {
         final sign = (map['sign'] ?? '').toString();
         final imgurl = (map['imgurl'] ?? '').toString();
         if (sign.isNotEmpty) {
-          final qrContent =
-              'https://wappass.baidu.com/wp/?qrlogin=&t=${ts ~/ 1000}&error=0&sign=$sign&cmd=qf';
           final directImg = imgurl.isNotEmpty
-              ? (imgurl.startsWith('http') ? imgurl : ['https', '://', imgurl].join())
-              : buildQrRenderUrl(qrContent);
+              ? (imgurl.startsWith('http')
+                    ? imgurl
+                    : ['https', '://', imgurl].join())
+              : 'https://passport.baidu.com/v2/api/qrcode?sign=$sign&lp=pc&qrloginfrom=pc';
+          int serverSec = ts ~/ 1000;
+          try {
+            final imgRes = await _http
+                .get(Uri.parse(directImg), headers: _commonHeaders)
+                .timeout(const Duration(seconds: 6));
+            final dateHdr = imgRes.headers['date'];
+            if (dateHdr != null && dateHdr.isNotEmpty) {
+              serverSec =
+                  HttpDate.parse(dateHdr).millisecondsSinceEpoch ~/ 1000;
+            }
+          } catch (_) {}
+          final qrContent =
+              'https://wappass.baidu.com/wp/?qrlogin&t=$serverSec&error=0&sign=$sign&cmd=login&lp=pc&adapter=3&qrloginfrom=pc';
           return NetdiskQrSession(
             driveKey: driveKey,
             qrContentUrl: qrContent,
@@ -218,7 +256,7 @@ class NetdiskService {
         }
       } else if (driveKey == 'ali') {
         final uri = Uri.parse(
-          'https://passport.aliyundrive.com/newlogin/qrcode/generate.do?appName=aliyun_drive&fromSite=52&appEntrance=web&_csrf_token=',
+          'https://passport.aliyundrive.com/newlogin/qrcode/generate.do?appName=aliyun_drive&fromSite=52&appEntrance=web&_csrf_token=&isMobile=false&lang=zh_CN&returnUrl=&hsbegin=$ts',
         );
         final res = await _http
             .get(uri, headers: _commonHeaders)
@@ -275,14 +313,48 @@ class NetdiskService {
     }
     final ts = DateTime.now().millisecondsSinceEpoch;
     try {
+      final ticketKey = '${session.driveKey}:${session.token}';
+      final cachedTicket = _cachedCloudTickets[ticketKey];
+      if (cachedTicket != null) {
+        final credential = session.driveKey == 'uc'
+            ? await NetdiskSession.exchangeUc(_http, cachedTicket)
+            : await NetdiskSession.exchangeBaidu(_http, cachedTicket);
+        _cachedCloudTickets.remove(ticketKey);
+        return NetdiskPollResult(state: NetdiskPollState.confirmed,
+            message: '网盘账号登录成功', credential: credential);
+      }
       if (session.driveKey == 'quark') {
-        final map = await _quarkPassport('/cas/ajax/getServiceTicketByQrcodeToken',
-            {'client_id': '532', 'v': '1.2', 'token': session.token, 'request_id': '$ts'});
+        final cachedTicket = _cachedQuarkTickets[session.token];
+        if (cachedTicket != null && cachedTicket.isNotEmpty) {
+          final account = await _quarkAccounts.exchangeServiceTicket(
+            cachedTicket,
+          );
+          _cachedQuarkTickets.remove(session.token);
+          return NetdiskPollResult(
+            state: NetdiskPollState.confirmed,
+            message: '夸父（夸克网盘）扫码登录成功！',
+            credential: account.toCredential(),
+          );
+        }
+        // Official pan.quark.cn web QR login creates and polls the token with
+        // client_id=532 before exchanging the resulting service_ticket.
+        final map = await _quarkPassport(
+          '/cas/ajax/getServiceTicketByQrcodeToken',
+          {
+            'client_id': '532',
+            'v': '1.2',
+            'token': session.token,
+            'request_id': '$ts',
+          },
+        );
         final status = map['status'];
         if (status == 2000000) {
-          final st = ((map['data'] as Map?)?['members'] as Map?)?['service_ticket'];
+          final st =
+              ((map['data'] as Map?)?['members'] as Map?)?['service_ticket'];
           if (st is! String) throw const FormatException('扫码授权凭据无效');
+          _cachedQuarkTickets[session.token] = st;
           final account = await _quarkAccounts.exchangeServiceTicket(st);
+          _cachedQuarkTickets.remove(session.token);
           return NetdiskPollResult(
             state: NetdiskPollState.confirmed,
             message: '夸父（夸克网盘）扫码登录成功！',
@@ -295,8 +367,10 @@ class NetdiskService {
           );
         }
         if (status != 50004001) {
-          return const NetdiskPollResult(state: NetdiskPollState.error,
-              message: '夸克扫码授权尚未完成，请刷新后重试');
+          return const NetdiskPollResult(
+            state: NetdiskPollState.error,
+            message: '夸克扫码授权尚未完成，请刷新后重试',
+          );
         }
         return const NetdiskPollResult(
           state: NetdiskPollState.waiting,
@@ -316,10 +390,13 @@ class NetdiskService {
               (((map['data'] as Map?)?['members'] as Map?)?['service_ticket'] ??
                       '')
                   .toString();
+          _cachedCloudTickets['uc:${session.token}'] = st;
+          final ucCredential = await NetdiskSession.exchangeUc(_http, st);
+          _cachedCloudTickets.remove('uc:${session.token}');
           return NetdiskPollResult(
             state: NetdiskPollState.confirmed,
             message: '优汐（UC网盘）扫码登录成功！',
-            credential: 'uc_st=$st; token=${session.token}',
+            credential: ucCredential,
           );
         } else if (status == 50004002) {
           return const NetdiskPollResult(
@@ -338,14 +415,10 @@ class NetdiskService {
         final res = await _http
             .get(uri, headers: _commonHeaders)
             .timeout(const Duration(seconds: 6));
-        final body = utf8.decode(res.bodyBytes).trim();
-        final jsonStr = body.startsWith('(') && body.endsWith(')')
-            ? body.substring(1, body.length - 1)
-            : body;
-        final map = jsonDecode(jsonStr) as Map;
+        final map = NetdiskSession.decodeObject(utf8.decode(res.bodyBytes));
         final errno = map['errno'];
         if (errno == 0 && map['channel_v'] != null) {
-          final cv = jsonDecode(map['channel_v'].toString()) as Map;
+          final cv = map['channel_v'] is Map ? map['channel_v'] as Map : jsonDecode(map['channel_v'].toString()) as Map;
           final status = cv['status'];
           if (status == 1) {
             return const NetdiskPollResult(
@@ -353,10 +426,19 @@ class NetdiskService {
               message: '已扫码，请在手机百度网盘上点击「确认登录」…',
             );
           } else if (status == 0 && cv['v'] != null) {
+            final ticket = cv['v'].toString();
+            _cachedCloudTickets['baidu:${session.token}'] = ticket;
+            final credential = await NetdiskSession.exchangeBaidu(_http, ticket);
+            _cachedCloudTickets.remove('baidu:${session.token}');
             return NetdiskPollResult(
               state: NetdiskPollState.confirmed,
               message: '嘟嘟（百度网盘）扫码登录成功！',
-              credential: 'bduss=${cv['v']}',
+              credential: credential,
+            );
+          } else if (status == 2) {
+            return const NetdiskPollResult(
+              state: NetdiskPollState.expired,
+              message: '二维码已过期，请点击刷新二维码',
             );
           }
         }
@@ -366,7 +448,7 @@ class NetdiskService {
         );
       } else if (session.driveKey == 'ali') {
         final uri = Uri.parse(
-          'https://passport.aliyundrive.com/newlogin/qrcode/query.do?appName=aliyun_drive&fromSite=52',
+          'https://passport.aliyundrive.com/newlogin/qrcode/query.do?appName=aliyun_drive&fromSite=52&_bx-v=2.2.3',
         );
         final res = await _http
             .post(
@@ -378,19 +460,25 @@ class NetdiskService {
               body: {
                 'ck': session.token,
                 't': session.extra['t'] ?? '',
+                'appName': 'aliyun_drive',
+                'appEntrance': 'web',
+                'fromSite': '52',
+                'isMobile': 'false',
+                'lang': 'zh_CN',
+                'returnUrl': '',
+                'navlanguage': 'zh-CN',
               },
             )
             .timeout(const Duration(seconds: 6));
         final map = jsonDecode(utf8.decode(res.bodyBytes)) as Map;
-        final data =
-            (map['content'] as Map?)?['data'] as Map? ?? const {};
+        final data = (map['content'] as Map?)?['data'] as Map? ?? const {};
         final status = (data['qrCodeStatus'] ?? '').toString();
         if (status == 'CONFIRMED') {
-          String token = (data['bizExt'] ?? session.token).toString();
+          final credential = NetdiskSession.aliCredential(data['bizExt']);
           return NetdiskPollResult(
             state: NetdiskPollState.confirmed,
             message: '阿狸（阿里云盘）扫码登录成功！',
-            credential: 'ali_token=$token',
+            credential: credential,
           );
         } else if (status == 'SCANED') {
           return const NetdiskPollResult(
@@ -413,6 +501,8 @@ class NetdiskService {
         return const NetdiskPollResult(state: NetdiskPollState.error,
             message: '夸克账号验证失败，请重新扫码');
       }
+      return const NetdiskPollResult(state: NetdiskPollState.error,
+          message: '网盘账号验证未完成，请重试或刷新二维码');
     }
     return const NetdiskPollResult(
       state: NetdiskPollState.waiting,
@@ -430,7 +520,13 @@ class NetdiskService {
     }
     final request = http.Request('GET', Uri.https('uop.quark.cn', path, parameters))
       ..followRedirects = false;
-    request.headers.addAll(_commonHeaders);
+    request.headers.addAll({
+      ..._commonHeaders,
+      'Origin': 'https://pan.quark.cn',
+      'Referer': 'https://pan.quark.cn/',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    });
     return (() async {
       final response = await _http.send(request);
       if (response.statusCode != 200) {

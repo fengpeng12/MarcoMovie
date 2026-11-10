@@ -638,12 +638,19 @@ class _DetailScreenState extends State<DetailScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  void _openPlayer(int lineIdx, int epIdx, {int? resumeMs}) {
+  Future<void> _openPlayer(int lineIdx, int epIdx, {int? resumeMs}) async {
     if (_video.lines.isEmpty) return;
     final safeLine = lineIdx.clamp(0, _video.lines.length - 1);
     final line = _video.lines[safeLine];
     if (line.episodes.isEmpty) return;
     final safeEp = epIdx.clamp(0, line.episodes.length - 1);
+    final provider = line.episodes[safeEp].cloudProvider;
+    if (provider != null && provider != 'uc' &&
+        !widget.storage.isNetdiskLoggedIn(provider)) {
+      await showNetdiskAccountSheet(context, widget.storage,
+          initialDriveKey: provider);
+      if (!mounted || !widget.storage.isNetdiskLoggedIn(provider)) return;
+    }
     int effectiveResumeMs = resumeMs ?? 0;
     if (resumeMs == null) {
       final bm = _findBookmark();
@@ -1533,6 +1540,10 @@ class _DetailScreenState extends State<DetailScreen> {
                                 _buildPortraitBookmarkProgress(bookmark),
                               ],
                               const SizedBox(height: 18),
+                              if (!_loading && _video.sourceWarnings.isNotEmpty)
+                                Padding(padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(_video.sourceWarnings.join('\n'),
+                                    style: const TextStyle(color: AppleColors.labelSecondary, fontSize: 13))),
                               if (_loading)
                                 const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -1547,7 +1558,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                 const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 20),
                                   child: Text(
-                                    '当前片单未提供播放地址，已启用的片源中也没有匹配到可播剧集',
+                                    '当前片源未提供可播放剧集，请重试或手动切换片源',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: AppleColors.labelSecondary,
@@ -2825,6 +2836,10 @@ class _DetailScreenState extends State<DetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               const SizedBox(height: 8),
+                              if (!_loading && _video.sourceWarnings.isNotEmpty)
+                                Padding(padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(_video.sourceWarnings.join('\n'),
+                                    style: const TextStyle(color: AppleColors.labelSecondary, fontSize: 13))),
                               if (_loading)
                                 const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -2839,7 +2854,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                 const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 20),
                                   child: Text(
-                                    '当前片单未提供播放地址，已启用的片源中也没有匹配到可播剧集',
+                                    '当前片源未提供可播放剧集，请重试或手动切换片源',
                                     style: TextStyle(
                                       color: AppleColors.labelSecondary,
                                       fontSize: 14,

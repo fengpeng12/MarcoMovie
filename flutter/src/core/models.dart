@@ -313,6 +313,9 @@ class CmsSite {
   bool get requiresPluginRuntime => !canBrowse;
   bool get supported => canBrowse;
   String get unsupportedReason {
+    if (isScriptOrJarApi && CspBridge.isNetdiskSite(this)) {
+      return '此网盘源的原始插件尚未适配当前设备，无法读取原始网盘线路。请使用同一来源提供的兼容接口，或切换片源';
+    }
     if (isScriptOrJarApi) return '该插件需要相应运行环境，可在兼容设备上使用';
     return '当前设备不支持此接口类型';
   }
@@ -461,9 +464,18 @@ class CmsEpisode {
     this.variants = const [],
     this.externalAudioUrl = '',
   });
+  String? get cloudProvider {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.userInfo.isNotEmpty || uri.hasPort) return null;
+    if (uri.scheme == 'mmcloud' && const {'uc', 'baidu', 'ali'}.contains(uri.host)) return uri.host;
+    if ((uri.scheme == 'mmwogg' && uri.host == 'quark') ||
+        (uri.scheme == 'mmquark' && uri.host == 'owned')) return 'quark';
+    return null;
+  }
+
   bool get isScriptEpisode => url.startsWith('mmjs://play?');
   bool get needsSourceResolution =>
-      isScriptEpisode || url.startsWith('mmemby://play?') || url.startsWith('mmpaw://play?') || url.startsWith('mmt4://play?') || url.startsWith('mmquark://owned?');
+      isScriptEpisode || url.startsWith('mmcloud://') || url.startsWith('mmemby://play?') || url.startsWith('mmpaw://play?') || url.startsWith('mmt4://play?') || url.startsWith('mmquark://owned?') || url.startsWith('mmwogg://quark?');
 
   /// Whether [url] points to an already-downloaded local file (offline playback).
   bool get isLocalFile {
@@ -521,6 +533,7 @@ class CmsVideo {
   final String description;
   final String tag;
   final List<CmsLine> lines;
+  final List<String> sourceWarnings;
   const CmsVideo({
     required this.id,
     required this.title,
@@ -532,6 +545,7 @@ class CmsVideo {
     this.description = '',
     this.tag = '',
     this.lines = const [],
+    this.sourceWarnings = const [],
   });
 }
 

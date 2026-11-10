@@ -7,19 +7,21 @@ import 'models.dart';
 import 'quark_account.dart';
 import 'source_playback.dart';
 
-/// Read-only access to files already in the authenticated Quark account.
-/// Share IDs/tokens never enter this client, and it has no save/delete methods.
+/// Account-scoped drive access and original public share resolution.
+/// Share resolution may save files but never deletes existing account files.
 class QuarkDriveClient {
   QuarkDriveClient({
     required QuarkAccountProvider accounts,
     http.Client? httpClient,
-  }) : _accounts = accounts,
-       _http = httpClient ?? http.Client(),
-       _ownsHttp = httpClient == null;
+    this.isCancelled,
+  })  : _accounts = accounts,
+        _http = httpClient ?? http.Client(),
+        _ownsHttp = httpClient == null;
 
   final QuarkAccountProvider _accounts;
   final http.Client _http;
   final bool _ownsHttp;
+  final bool Function()? isCancelled;
   static const _pageSize = 50;
   static const _timeout = Duration(seconds: 20);
   static const _maxResponseBytes = 4 * 1024 * 1024;
@@ -67,8 +69,7 @@ class QuarkDriveClient {
       if (fileId is! String ||
           !_identifier.hasMatch(fileId) ||
           title is! String ||
-          title.trim().isEmpty)
-        continue;
+          title.trim().isEmpty) continue;
       final directory = row['dir'] == true || _integer(row['file_type']) == 0;
       if (!directory && _integer(row['category']) != 1) continue;
       final id = Uri(
@@ -153,19 +154,25 @@ class QuarkDriveClient {
       final data = play['data'];
       final choices = data is Map ? data['video_list'] : null;
       if (choices is List) {
-        final transcodes = <({int rank, Map<String, String> item})>[];
+        const rankMap = <String, int>{
+          '4k': 6,
+          '2k': 5,
+          'super': 4,
+          'high': 3,
+          'low': 2,
+          'normal': 1,
+        };
+        final rankedChoices = <({int rank, String name, String url})>[];
         for (final choice in choices.whereType<Map>()) {
           final info = choice['video_info'];
           if (info is! Map ||
               choice['available'] == false ||
-              info['available'] == false)
-            continue;
+              info['available'] == false) continue;
           final url = _mediaUrl(info['url']);
           if (url.isEmpty) continue;
-          final resolution = '${choice['resolution'] ?? ''}';
+          final resolution = '${choice['resolution'] ?? ''}'.toLowerCase();
           final height = _integer(info['height']);
-          final name =
-              const {
+          final name = const {
                 'normal': '流畅',
                 'low': '标清',
                 'high': '高清',
@@ -174,21 +181,12 @@ class QuarkDriveClient {
                 '4k': '4K',
               }[resolution] ??
               (height != null && height > 0 ? '${height}p' : '转码');
-          final rank =
-              const {
-                '4k': 6000,
-                '2k': 5000,
-                'super': 4000,
-                'high': 3000,
-                'low': 2000,
-                'normal': 1000,
-              }[resolution] ??
-              (height ?? 0);
-          transcodes.add((rank: rank, item: {'name': name, 'url': url}));
+          final rank = rankMap[resolution] ?? ((height ?? 0) ~/ 360);
+          rankedChoices.add((rank: rank, name: name, url: url));
         }
-        transcodes.sort((a, b) => b.rank.compareTo(a.rank));
-        for (final entry in transcodes) {
-          variants.add(entry.item);
+        rankedChoices.sort((a, b) => b.rank.compareTo(a.rank));
+        for (final item in rankedChoices) {
+          variants.add({'name': item.name, 'url': item.url});
         }
       }
     } on QuarkDriveException catch (error) {
@@ -213,6 +211,385 @@ class QuarkDriveClient {
     return resolved;
   }
 
+  /// Walks the original public share with pagination. Stable episode references
+  /// contain file identity only; short-lived provider tokens never enter history.
+  static Future<List<CmsEpisode>> listPublicShareEpisodes(
+    String shareUrl, {
+    http.Client? httpClient,
+    bool Function()? isCancelled,
+  }) async {
+    final match = RegExp(
+      r'^https?://pan\.quark\.cn/s/([A-Za-z0-9_-]{1,128})(?:[/?#\s]|$)',
+      caseSensitive: false,
+    ).firstMatch(shareUrl.trim());
+    if (match == null) return const [];
+    final pwdId = match.group(1)!;
+    final passcode = RegExp(
+          r'(?:pwd|passcode|code|提取码)[=:：\s]*([A-Za-z0-9]{4})',
+          caseSensitive: false,
+        ).firstMatch(shareUrl)?.group(1) ??
+        '';
+    final client = httpClient ?? http.Client();
+    try {
+      final token =
+          await _shareToken(client, pwdId, passcode, isCancelled: isCancelled);
+      final files =
+          await _walkShare(client, pwdId, token, isCancelled: isCancelled);
+      return [
+        for (final entry in files)
+          CmsEpisode(
+            name: entry.folder.isEmpty
+                ? '${entry.row['file_name']}'
+                : '${entry.folder}/${entry.row['file_name']}',
+            url: Uri(scheme: 'mmwogg', host: 'quark', queryParameters: {
+              'v': '1',
+              'pwd_id': pwdId,
+              'fid': '${entry.row['fid']}',
+              'pdir_fid': entry.parent,
+              if (passcode.isNotEmpty) 'passcode': passcode,
+            }).toString(),
+          )
+      ];
+    } finally {
+      if (httpClient == null) client.close();
+    }
+  }
+
+  static Future<String> _shareToken(
+      http.Client client, String share, String passcode,
+      {bool Function()? isCancelled}) async {
+    final payload = await _publicRequest(
+        client, '/1/clouddrive/share/sharepage/token',
+        body: {'pwd_id': share, 'passcode': passcode},
+        isCancelled: isCancelled);
+    final data = payload['data'];
+    final token = data is Map ? data['stoken'] : null;
+    if (token is! String || token.isEmpty || token.length > 16384) {
+      throw const QuarkDriveException('invalid_share', '夸克分享已失效或需要提取码');
+    }
+    return token;
+  }
+
+  static Future<List<({String parent, String folder, Map row})>> _walkShare(
+    http.Client client,
+    String share,
+    String token, {
+    String root = '0',
+    String? target,
+    bool Function()? isCancelled,
+  }) async {
+    const pageSize = 200;
+    final files = <({String parent, String folder, Map row})>[];
+    final directories = <String>{};
+    final fileIds = <String>{};
+    var requests = 0;
+    Future<bool> walk(String parent, String folder, int depth) async {
+      if (directories.contains(parent)) return false;
+      if (depth > 12 || directories.length >= 128) {
+        throw const QuarkDriveException(
+            'share_limit_exceeded', '夸克分享目录过大，请打开较小的分享目录');
+      }
+      directories.add(parent);
+      final children = <Map>[];
+      var fetched = 0;
+      final pageFingerprints = <String>{};
+      for (var page = 1;; page++) {
+        if (page > 100 || ++requests > 256) {
+          throw const QuarkDriveException(
+              'share_limit_exceeded', '夸克分享目录超过读取限制，请打开较小的分享目录');
+        }
+        final payload = await _publicRequest(
+            client, '/1/clouddrive/share/sharepage/detail',
+            isCancelled: isCancelled,
+            query: {
+              'pwd_id': share,
+              'stoken': token,
+              'pdir_fid': parent,
+              'force': '0',
+              '_page': '$page',
+              '_size': '$pageSize',
+              '_fetch_banner': '0',
+              '_fetch_share': '0',
+              '_fetch_total': '1',
+              '_sort': 'file_type:asc,file_name:asc',
+            });
+        final data = payload['data'];
+        if (data is! Map || data['list'] is! List) {
+          throw const QuarkDriveException('invalid_response', '夸克未返回有效分享目录');
+        }
+        final rows = data['list'] as List;
+        final metadata = payload['metadata'];
+        final total =
+            _integer(metadata is Map ? metadata['_total'] : data['total']);
+        if (rows.isNotEmpty &&
+            !pageFingerprints.add(jsonEncode([
+              for (final row in rows.whereType<Map>()) row['fid'],
+            ]))) {
+          throw const QuarkDriveException(
+              'incomplete_share', '夸克分享分页返回重复内容，请稍后重试');
+        }
+        fetched += rows.length;
+        for (final row in rows) {
+          if (row is! Map ||
+              row['fid'] is! String ||
+              !_identifier.hasMatch(row['fid']) ||
+              row['file_name'] is! String) {
+            throw const QuarkDriveException('invalid_response', '夸克分享目录数据无效');
+          }
+          if (row['dir'] == true || _integer(row['file_type']) == 0) {
+            children.add(row);
+          } else if (_integer(row['category']) == 1 ||
+              RegExp(r'\.(?:mp4|mkv|ts|m3u8|mov|avi|flv|wmv|webm)$',
+                      caseSensitive: false)
+                  .hasMatch(row['file_name'])) {
+            if (target != null && row['fid'] != target) continue;
+            if (fileIds.add(row['fid'])) {
+              if (files.length >= 5000) {
+                throw const QuarkDriveException(
+                    'share_limit_exceeded', '夸克分享视频超过读取限制，请打开较小的分享目录');
+              }
+              files.add((parent: parent, folder: folder, row: row));
+            }
+            if (target != null) return true;
+          }
+        }
+        if (total != null && total >= 0) {
+          if (fetched >= total) break;
+          if (rows.isEmpty) {
+            throw const QuarkDriveException(
+                'incomplete_share', '夸克分享目录未读取完整，请稍后重试');
+          }
+        } else if (rows.length < pageSize) {
+          break;
+        }
+      }
+      for (final child in children) {
+        final name = '${child['file_name']}';
+        if (await walk(
+            child['fid'], folder.isEmpty ? name : '$folder/$name', depth + 1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    await walk(root, '', 0);
+    return files;
+  }
+
+  static Future<Map<String, dynamic>> _publicRequest(
+    http.Client client,
+    String path, {
+    Map<String, String> query = const {},
+    Map<String, Object>? body,
+    bool Function()? isCancelled,
+  }) async {
+    _checkCancelled(isCancelled);
+    final request = http.Request(
+        body == null ? 'GET' : 'POST',
+        Uri.https(_apiHost, path, {
+          'pr': 'ucpro',
+          'fr': 'pc',
+          'uc_param_str': '',
+          ...query,
+        }))
+      ..followRedirects = false
+      ..maxRedirects = 0
+      ..headers.addAll({
+        'User-Agent': _userAgent,
+        'Referer': _referer,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      });
+    if (body != null) request.body = jsonEncode(body);
+    try {
+      final response = await client.send(request).timeout(_timeout);
+      if (isCancelled?.call() == true) {
+        await response.stream.listen((_) {}).cancel();
+        _checkCancelled(isCancelled);
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        await response.stream.listen((_) {}).cancel();
+        throw const QuarkDriveException('unavailable', '夸克分享暂不可用，请检查分享状态');
+      }
+      final bytes = <int>[];
+      await for (final part in response.stream.timeout(_timeout)) {
+        _checkCancelled(isCancelled);
+        if (bytes.length + part.length > _maxResponseBytes) {
+          throw const QuarkDriveException('invalid_response', '夸克响应超过大小限制');
+        }
+        bytes.addAll(part);
+      }
+      final value = jsonDecode(utf8.decode(bytes));
+      if (value is! Map<String, dynamic> ||
+          _integer(value['code']) != 0 ||
+          (_integer(value['status']) != null &&
+              _integer(value['status']) != 200)) {
+        throw const QuarkDriveException('unavailable', '夸克分享已失效或需要提取码');
+      }
+      return value;
+    } on TimeoutException {
+      throw const QuarkDriveException('unavailable', '夸克分享读取超时，请稍后重试');
+    } on http.ClientException {
+      throw const QuarkDriveException('unavailable', '无法连接夸克分享');
+    } on FormatException {
+      throw const QuarkDriveException('invalid_response', '夸克分享接口返回格式无效');
+    }
+  }
+
+  /// Refreshes tokens from the original share, then saves only the selected
+  /// video. Never removes existing account files, and never stores share tokens.
+  Future<CmsEpisode> resolveWoggShare(CmsEpisode episode) async {
+    final uri = Uri.tryParse(episode.url);
+    const allowed = {
+      'v',
+      'pwd_id',
+      'fid',
+      'pdir_fid',
+      'passcode',
+      'stoken',
+      'fid_token'
+    };
+    if (uri == null ||
+        uri.scheme != 'mmwogg' ||
+        uri.host != 'quark' ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasPort ||
+        uri.path.isNotEmpty ||
+        uri.hasFragment ||
+        uri.queryParametersAll.entries
+            .any((e) => !allowed.contains(e.key) || e.value.length != 1)) {
+      throw const QuarkDriveException('invalid_share', '夸克分享播放标识无效');
+    }
+    final pwdId = uri.queryParameters['pwd_id'] ?? '';
+    final shareFid = uri.queryParameters['fid'] ?? '';
+    final parent = uri.queryParameters['pdir_fid'];
+    final passcode = uri.queryParameters['passcode'] ?? '';
+    if (!_identifier.hasMatch(pwdId) ||
+        !_identifier.hasMatch(shareFid) ||
+        (parent != null && !_identifier.hasMatch(parent)) ||
+        (passcode.isNotEmpty &&
+            !RegExp(r'^[A-Za-z0-9]{4}$').hasMatch(passcode)) ||
+        (uri.queryParameters['v'] != null && uri.queryParameters['v'] != '1')) {
+      throw const QuarkDriveException('invalid_share', '夸克分享参数不完整');
+    }
+    final session = await _accounts.requireSession();
+    final generation = _accounts.generation;
+    _checkCancelled(isCancelled);
+    final stoken =
+        await _shareToken(_http, pwdId, passcode, isCancelled: isCancelled);
+    final files = await _walkShare(_http, pwdId, stoken,
+        root: parent ?? '0', target: shareFid, isCancelled: isCancelled);
+    await _accounts.assertCurrentSession(session, generation: generation);
+    if (files.isEmpty) {
+      throw const QuarkDriveException('unavailable', '原夸克分享中已找不到此视频');
+    }
+    final shared = files.first;
+    final shareFidToken = shared.row['share_fid_token'];
+    if (shareFidToken is! String ||
+        shareFidToken.isEmpty ||
+        shareFidToken.length > 16384) {
+      throw const QuarkDriveException('invalid_response', '夸克未返回此分享文件的有效凭据');
+    }
+
+    String tempDirFid = '';
+    for (var page = 1; page <= 100; page++) {
+      final rootList = await _request(
+          session, generation, '/1/clouddrive/file/sort',
+          query: {
+            'pdir_fid': '0',
+            '_page': '$page',
+            '_size': '100',
+            '_fetch_total': '1',
+            '_fetch_sub_dirs': '0',
+            '_sort': 'file_type:asc,updated_at:desc',
+          });
+      final data = rootList['data'];
+      final rows = data is Map ? data['list'] : null;
+      if (rows is! List) {
+        throw const QuarkDriveException('invalid_response', '夸克未返回有效账户目录');
+      }
+      for (final row in rows.whereType<Map>()) {
+        if ((row['dir'] == true || _integer(row['file_type']) == 0) &&
+            row['file_name'] == '0000temp') {
+          tempDirFid = _fid('${row['fid']}');
+          break;
+        }
+      }
+      if (tempDirFid.isNotEmpty || rows.length < 100) break;
+      if (page == 100) {
+        throw const QuarkDriveException(
+            'share_limit_exceeded', '夸克根目录过大，无法确认转存目录');
+      }
+    }
+    if (tempDirFid.isEmpty) {
+      final created =
+          await _request(session, generation, '/1/clouddrive/file', body: {
+        'pdir_fid': '0',
+        'file_name': '0000temp',
+        'dir_path': '',
+        'dir_init_lock': false,
+      });
+      final data = created['data'];
+      tempDirFid = _fid(data is Map ? '${data['fid'] ?? ''}' : '');
+    }
+    final saved = await _request(
+        session, generation, '/1/clouddrive/share/sharepage/save',
+        body: {
+          'fid_list': [shareFid],
+          'fid_token_list': [shareFidToken],
+          'to_pdir_fid': tempDirFid,
+          'pwd_id': pwdId,
+          'stoken': stoken,
+          'pdir_fid': shared.parent,
+          'scene': 'link',
+        });
+    String savedFid(Object? data) {
+      if (data is! Map) return '';
+      final direct = data['save_as'];
+      final fids = direct is Map ? direct['save_as_top_fids'] : null;
+      if (fids is List &&
+          fids.isNotEmpty &&
+          _identifier.hasMatch('${fids.first}')) {
+        return '${fids.first}';
+      }
+      final task = data['task_resp'];
+      if (task is Map) return savedFid(task['data']);
+      return '';
+    }
+
+    var owned = savedFid(saved['data']);
+    final data = saved['data'];
+    final taskId = data is Map ? '${data['task_id'] ?? ''}' : '';
+    if (owned.isEmpty && taskId.isNotEmpty) {
+      for (var i = 0; i < 10; i++) {
+        final task = await _request(session, generation, '/1/clouddrive/task',
+            query: {'task_id': taskId, 'retry_index': '$i'});
+        owned = savedFid(task['data']);
+        if (owned.isNotEmpty) break;
+        final taskData = task['data'];
+        final status = taskData is Map ? _integer(taskData['status']) : null;
+        if (status != 0 && status != 1) break;
+        if (i < 9) {
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        }
+      }
+    }
+    if (owned.isEmpty) {
+      throw const QuarkDriveException('unavailable', '夸克分享转存尚未完成，请稍后到网盘查看');
+    }
+    await _accounts.assertCurrentSession(session, generation: generation);
+    final resolved = await resolve(CmsEpisode(
+        name: episode.name,
+        url: Uri(
+          scheme: 'mmquark',
+          host: 'owned',
+          queryParameters: {'account': session.accountId, 'fid': owned},
+        ).toString()));
+    await _accounts.assertCurrentSession(session, generation: generation);
+    return resolved;
+  }
+
   Future<Map<String, dynamic>> _request(
     QuarkAccountSession session,
     int generation,
@@ -220,7 +597,9 @@ class QuarkDriveClient {
     Map<String, String> query = const {},
     Map<String, Object>? body,
   }) async {
+    _checkCancelled(isCancelled);
     await _accounts.assertCurrentSession(session, generation: generation);
+    _checkCancelled(isCancelled);
     final uri = Uri.https(_apiHost, path, {
       'pr': 'ucpro',
       'fr': 'pc',
@@ -241,6 +620,7 @@ class QuarkDriveClient {
     try {
       final response = await _http.send(request).timeout(_timeout);
       try {
+        _checkCancelled(isCancelled);
         await _accounts.assertCurrentSession(session, generation: generation);
       } catch (_) {
         await response.stream.listen((_) {}).cancel();
@@ -267,6 +647,7 @@ class QuarkDriveClient {
       }
       final bytes = <int>[];
       await for (final part in response.stream.timeout(_timeout)) {
+        _checkCancelled(isCancelled);
         if (bytes.length + part.length > _maxResponseBytes) {
           throw const QuarkDriveException('invalid_response', '夸克响应超过大小限制');
         }
@@ -295,6 +676,12 @@ class QuarkDriveClient {
       throw const QuarkDriveException('unavailable', '无法连接夸克网盘');
     } on FormatException {
       throw const QuarkDriveException('invalid_response', '夸克接口返回格式无效');
+    }
+  }
+
+  static void _checkCancelled(bool Function()? check) {
+    if (check?.call() == true) {
+      throw const QuarkDriveException('cancelled', '夸克操作已取消');
     }
   }
 

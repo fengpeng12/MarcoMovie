@@ -9,6 +9,7 @@ on:
         default: all
         options:
           - all
+          - desktop
           - android
           - windows
           - macos
@@ -139,7 +140,7 @@ jobs:
             android/build/build-validation.json
 
   build-windows:
-    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'windows'
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'desktop' || inputs.target == 'windows'
     name: Build Windows Desktop (x64)
     needs: [verify-and-checks]
     runs-on: windows-latest
@@ -247,7 +248,7 @@ jobs:
             flutter/dist/*.sha256
 
   build-macos:
-    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'macos'
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'desktop' || inputs.target == 'macos'
     name: Build macOS Desktop (Apple Silicon & Intel)
     needs: [verify-and-checks]
     runs-on: macos-15-intel
@@ -272,8 +273,8 @@ jobs:
           cmake -S packages/quickjs_engine/native -B packages/quickjs_engine/native/build -DCMAKE_BUILD_TYPE=Release
           cmake --build packages/quickjs_engine/native/build --parallel 4
           flutter test
-          VERSION="0.5.7"
-          flutter build macos --release --build-name="$VERSION" --build-number=57
+          VERSION="0.5.8"
+          flutter build macos --release --build-name="$VERSION" --build-number=58
           APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)
           python3 ../scripts/prepare_catpaw_runtime.py --platform macos --destination "$APP/Contents/Frameworks/node"
           codesign --force --deep --sign - --preserve-metadata=entitlements "$APP"

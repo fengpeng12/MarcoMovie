@@ -28,6 +28,10 @@ TEST_AUTHORITIES = {
     'flutter/test/drpy_host_test.dart': {'user:secret@fixture.invalid'},
     'flutter/test/guard_bootstrap_host_test.dart': {'user:secret@fixture.invalid'},
     'flutter/test/subscription_redirect_test.dart': {'injected:secret@127.0.0.1:${origin.port}'},
+    'flutter/test/ali_share_test.dart': {'user@www.alipan.com'},
+    'flutter/test/cloud_share_test.dart': {'x@drive.uc.cn', 'fast.uc.cn', 'video.uc.cn'},
+    'flutter/test/desktop_cloud_media_test.dart': {'media.uc.cn'},
+    'flutter/test/wogg_source_test.dart': {'user:password@catalogue.invalid'},
     'android/tests/JsHttpChecks.java': {'new:secret@', 'us%40er:pa%2Bss@'},
     'flutter/test/python_host_compat_test.dart': {'user:pass@[::1]:8443'},
     'scripts/test_python_host.js': {'user:pass@[::1]:8443', '127.0.0.2', '127.0.0.2:'},
@@ -46,6 +50,14 @@ EXPERIMENT_HOSTS = {
     'scripts/ios_cpython/pure-dependencies.lock.json': {'files.pythonhosted.org', 'pypi.org'},
     'scripts/ios_cpython/README.md': {'docs.python.org', 'briefcase.beeware.org'},
     'scripts/ios_cpython_transport/README.md': {'requests.readthedocs.io'},
+}
+
+# Original cloud-provider endpoints used only for an explicitly selected share
+# and account. Keep review scoped to the adapter rather than permitting these
+# hosts in arbitrary public files. Synthetic media URLs stay test-scoped above.
+CLOUD_SHARE_HOSTS = {
+    'flutter/src/core/ali_share.dart': {'api.aliyundrive.com', 'auth.aliyundrive.com', 'bj29.api.aliyunpds.com'},
+    'flutter/src/core/cloud_share.dart': {'fast.uc.cn'},
 }
 
 def paths():
@@ -81,6 +93,7 @@ for p in files:
         if authority in TEST_AUTHORITIES.get(relative.as_posix(), set()):continue
         host=authority.split(':')[0].lower().rstrip('.,;')
         if host in EXPERIMENT_HOSTS.get(relative.as_posix(), set()):continue
+        if host in CLOUD_SHARE_HOSTS.get(relative.as_posix(), set()):continue
         if relative.as_posix() == 'flutter/pubspec.lock' and host in {'pub.dev','dart.dev'}:continue
         if relative.as_posix() == 'docs/python-json-compatibility.md' and host == 'docs.python.org':continue
         if host not in ALLOWED_HOSTS and not host.endswith(('.test','.example','.invalid')):
